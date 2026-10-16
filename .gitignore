@@ -1,0 +1,33 @@
+# 本机设置、解释器位置和日志
+/config.json
+/config.tmp
+/runtime-python.txt
+*.log
+.env
+.env.*
+
+# 已安装依赖与 Python 缓存
+/_deps/
+/.venv/
+/venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# 本机窗口验证生成的临时文件
+/tools/native-return-*/
+/tools/native-borderless-*/
+/tests/tmp*/
+
+# 打包文件及编辑器配置
+*.zip
+*.zip.tmp
+/backups/
+/dist/
+/build/
+.idea/
+.vscode/
+Thumbs.db
+.DS_Store
