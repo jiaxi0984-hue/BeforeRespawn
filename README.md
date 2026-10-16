@@ -1,4 +1,17 @@
-# 泉水背词 · 英雄联盟 × Anki
+# LOL-Words-zhandoushuang · 泉水背词
+
+我要背单词,可是我又要玩海斗战斗爽怎么办?怎么办呢?
+
+为您提供以下功能（以下四项为计划功能，当前版本尚未实现）：
+
+1. 对局结束了自动返回大厅
+2. 自动转让房主（这样不当房主的话，就可以完全解放双手）
+3. 自动接受游戏
+4. 自动选瘤子英雄
+
+这样的话，就只需要战斗和学习了
+
+## 当前可用
 
 在英雄联盟死亡等待期间复习 Anki：进入对局自动打开 Anki，确认死亡灰屏后临时置顶，复活前返回游戏，对局结束正常关闭。
 
@@ -26,8 +39,8 @@
 ## 安装与运行
 
 ```powershell
-git clone https://github.com/jiaxi0984-hue/jxxxx1.git
-cd jxxxx1
+git clone https://github.com/jiaxi0984-hue/LOL-Words-zhandoushuang.git
+cd LOL-Words-zhandoushuang
 ```
 
 1. 安装 [Python 3.14](https://www.python.org/downloads/)；使用官方安装程序的默认 tkinter 组件。
