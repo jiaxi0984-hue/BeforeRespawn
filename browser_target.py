@@ -101,7 +101,7 @@ class BrowserAdapter(DesktopAdapter):
             self.owner.transact(lambda data: data.update(target_id=page['id']))
         return page
 
-    def evaluate(self, expression):
+    def command(self, method, params):
         # 依赖加载范围仅限项目 _deps，不加载任何浏览器凭据或已有用户配置目录。
         import sys
         deps = str(self.root / '_deps')
@@ -112,15 +112,33 @@ class BrowserAdapter(DesktopAdapter):
         sock = websocket.create_connection(page['webSocketDebuggerUrl'], timeout=1.5,
                                             suppress_origin=True, http_no_proxy=['127.0.0.1', 'localhost'])
         try:
-            sock.send(json.dumps(dict(id=1, method='Runtime.evaluate', params=dict(
-                expression=expression, returnByValue=True, userGesture=True))))
+            sock.send(json.dumps(dict(id=1, method=method, params=params)))
             deadline = time.monotonic() + 2
             while time.monotonic() < deadline:
                 result = json.loads(sock.recv())
                 if result.get('id') == 1:
-                    if 'error' in result or result.get('result', {}).get('exceptionDetails'):
+                    if 'error' in result:
                         raise ValueError('官方页面脚本检查失败')
-                    return result.get('result', {}).get('result', {}).get('value')
+                    return result.get('result', {})
             raise OSError('专用页面响应超时')
         finally:
             sock.close()
+
+    def evaluate(self, expression):
+        result = self.command('Runtime.evaluate', dict(expression=expression, returnByValue=True, userGesture=True))
+        if result.get('exceptionDetails'):
+            raise ValueError('官方页面脚本检查失败')
+        return result.get('result', {}).get('value')
+
+    def navigate_home(self):
+        """仅导航本工具已识别的页面，不新建或改动日常标签页。"""
+        if self.page().get('url', '').rstrip('/') == self.spec['url'].rstrip('/'):
+            return
+        result = self.command('Page.navigate', dict(url=self.spec['url']))
+        if result.get('errorText'):
+            raise OSError('官网导航未完成')
+
+    def request_download(self, url):
+        result = self.command('Page.navigate', dict(url=url))
+        if result.get('errorText') not in (None, '', 'net::ERR_ABORTED'):
+            raise OSError('浏览器未能提交官方下载')

@@ -31,12 +31,13 @@ def main():
         if not identity:raise RuntimeError('无法核实只读浏览器身份')
         def update(data):data.clear();data.update(identity=identity)
         adapter.owner.transact(update)
-        deadline=time.monotonic()+20
+        deadline=time.monotonic()+30
         result=None
         last_error=''
         while time.monotonic()<deadline:
             try:
                 result=adapter.evaluate(INSPECT_PC)
+                last_error=''
                 if result and result.get('state') in {'ready','link'}:break
             except (OSError,ValueError,KeyError) as exc:last_error=type(exc).__name__+': '+str(exc)
             time.sleep(.5)

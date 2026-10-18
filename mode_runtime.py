@@ -26,6 +26,7 @@ class ModeRuntime:
         self.stopped = lambda: False
         self.download_factory = OfficialDownload
         self.retired_pending = []
+        self.force_penalty_open = False
 
     def make_flow(self, config):
         flow = StudyFlow(self.context, self.presentation, copy.deepcopy(config), self.report, self.return_game)
@@ -61,12 +62,16 @@ class ModeRuntime:
                 self.manager = self.registry.get(spec)
                 self.context.adapter = self.manager.adapter
                 self.download = self.download_factory(self.report)
+                # 彩蛋单局只领取一次；此次明确允许重新打开先前被关闭的官网窗口。
+                self.force_penalty_open = True
                 self.report('死亡惩罚已为本局记账：本次优先原神官网，普通娱乐页面不会同时弹出')
         if self.penalty_death != self.current_death and self.manager is not self.primary:
             self.manager = self.primary
             self.context.adapter = self.manager.adapter
         self.flow.config['persistent_target_topmost'] = bool(self.config['persistent_target_topmost'] and self.manager.adapter.spec.get('pin', True))
-        target = self.manager.ensure()
+        force_open = self.force_penalty_open
+        self.force_penalty_open = False
+        target = self.manager.ensure(manual=force_open)
         if (self.penalty_death is not None and self.penalty_death == self.current_death and self.ledger.current and self.manager.state == 'failed'
                 and self.ledger.current['status'] != '已触发，但专用浏览器不可用；未发起下载，不自动重试'):
             self.ledger.set_status('已触发，但专用浏览器不可用；未发起下载，不自动重试')
@@ -115,6 +120,7 @@ class ModeRuntime:
         self.flow.data_lost()
 
     def cleanup(self):
+        self.force_penalty_open = False
         if self.download:
             self.download.cancel()
         if self.manager.pending_since is not None and not any(m is self.manager for m,d in self.retired_pending):

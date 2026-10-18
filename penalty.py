@@ -58,7 +58,7 @@ class DeathLedger:
 
     def eligible(self, mode, enabled):
         return bool(not self.failed and self.available and self.current and mode == 'entertainment'
-                    and enabled and self.current['deaths'] >= 20 and not self.current['claimed'])
+                    and enabled and self.current['deaths'] > 20 and not self.current['claimed'])
 
     def claim(self):
         """在安全切出时先落盘，再产生外部动作；失败时宁可不下载。"""
@@ -68,7 +68,7 @@ class DeathLedger:
             try:
                 def update(data):
                     record = data.get('match', {})
-                    if record.get('id') != self.current['id']:
+                    if record.get('id') != self.current['id'] or record.get('deaths', 0) <= 20:
                         return None, False
                     if record.get('claimed'):
                         return dict(record), False

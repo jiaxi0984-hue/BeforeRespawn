@@ -207,6 +207,26 @@ class AdapterTests(TempCase):
         opener=Mock();opener.open.return_value=io.BytesIO(json.dumps(pages).encode())
         with patch('browser_target.urllib.request.build_opener',return_value=opener),self.assertRaises(ValueError):a.page()
 
+    def test_easter_egg_navigation_forces_owned_page_back_to_official_home(self):
+        adapter=BrowserAdapter(dict(id='genshin-penalty',name='原神官网',adapter='web',url=GENSHIN_HOME),self.w,self.root)
+        adapter.page=Mock(return_value={'url':'https://example.com/other-owned-page'})
+        adapter.command=Mock(return_value={'frameId':'owned-frame'})
+        adapter.navigate_home()
+        adapter.command.assert_called_once_with('Page.navigate',{'url':GENSHIN_HOME})
+
+    def test_official_navigation_error_does_not_report_success(self):
+        adapter=BrowserAdapter(dict(id='genshin-penalty',name='原神官网',adapter='web',url=GENSHIN_HOME),self.w,self.root)
+        adapter.page=Mock(return_value={'url':'https://example.com/other-owned-page'})
+        adapter.command=Mock(return_value={'errorText':'net::ERR_FAILED'})
+        with self.assertRaises(OSError):adapter.navigate_home()
+
+    def test_official_home_already_open_does_not_reload_or_create_a_tab(self):
+        adapter=BrowserAdapter(dict(id='genshin-penalty',name='原神官网',adapter='web',url=GENSHIN_HOME),self.w,self.root)
+        adapter.page=Mock(return_value={'url':GENSHIN_HOME})
+        adapter.command=Mock()
+        adapter.navigate_home()
+        adapter.command.assert_not_called()
+
     def test_failed_start_has_no_automatic_retry(self):
         self.w.window_inventory.return_value=[];self.w.processes.return_value=[]
         self.a.start=Mock(side_effect=OSError('not installed'));m=TargetManager(self.a,Mock())
@@ -221,9 +241,11 @@ class LedgerTests(TempCase):
     def observe(self,count,now=100,player='本人#123',process='game:1'):
         self.ledger.observe(player,now,process,count,1000+now)
 
-    def test_nineteen_to_twenty_threshold(self):
+    def test_twenty_is_not_enough_and_twenty_one_triggers(self):
         self.observe(19);self.assertFalse(self.ledger.eligible('entertainment',True))
-        self.observe(20,101);self.assertTrue(self.ledger.eligible('entertainment',True))
+        self.observe(20,101);self.assertFalse(self.ledger.eligible('entertainment',True))
+        self.assertFalse(self.ledger.claim())
+        self.observe(21,102);self.assertTrue(self.ledger.eligible('entertainment',True))
         self.assertTrue(self.ledger.claim());self.assertFalse(self.ledger.claim())
 
     def test_count_jump_over_threshold_triggers(self):
@@ -236,30 +258,30 @@ class LedgerTests(TempCase):
         self.assertEqual(sum('累计死亡' in s for s in self.logs),1)
 
     def test_reconnect_with_lower_score_never_rearms(self):
-        self.observe(20);self.ledger.claim();self.observe(19,101);self.observe(20,102)
-        self.assertEqual(self.ledger.current['deaths'],20)
+        self.observe(21);self.ledger.claim();self.observe(19,101);self.observe(21,102)
+        self.assertEqual(self.ledger.current['deaths'],21)
         self.assertFalse(self.ledger.eligible('entertainment',True))
 
     def test_same_match_tool_restart_preserves_claim(self):
-        self.observe(20);self.ledger.claim()
+        self.observe(21);self.ledger.claim()
         other=DeathLedger(self.path);other.observe('本人#123',120,'game:1',21,1120)
         self.assertTrue(other.current['claimed'])
         self.assertFalse(other.eligible('entertainment',True))
 
     def test_next_match_resets_count_and_trigger(self):
-        self.observe(20);self.ledger.claim();self.ledger.end()
+        self.observe(21);self.ledger.claim();self.ledger.end()
         self.ledger.observe('本人#123',10,'game:2',0,1200)
         self.assertEqual(self.ledger.current['deaths'],0)
         self.assertFalse(self.ledger.current['claimed'])
 
     def test_reused_game_process_with_game_time_reset_is_new_match(self):
-        self.observe(20,1000);self.ledger.claim()
+        self.observe(21,1000);self.ledger.claim()
         self.ledger.observe('本人#123',10,'game:1',0,2100)
         self.assertFalse(self.ledger.current['claimed'])
         self.assertEqual(self.ledger.current['deaths'],0)
 
     def test_different_player_does_not_inherit_deaths(self):
-        self.observe(20);self.ledger.claim();self.observe(0,101,player='另一人#456')
+        self.observe(21);self.ledger.claim();self.observe(0,101,player='另一人#456')
         self.assertEqual(self.ledger.current['deaths'],0)
 
     def test_learning_mode_and_disabled_penalty_never_trigger(self):
@@ -268,18 +290,18 @@ class LedgerTests(TempCase):
         self.assertFalse(self.ledger.eligible('entertainment',False))
 
     def test_unreliable_missing_count_is_not_guessed(self):
-        for value in [None,True,'20',-1]:
+        for value in [None,True,'21',-1]:
             self.observe(value)
             self.assertFalse(self.ledger.eligible('entertainment',True))
 
     def test_persisted_record_contains_no_plain_player_identity(self):
-        self.observe(20)
+        self.observe(21)
         raw=self.path.read_text(encoding='utf-8')
         self.assertNotIn('本人#123',raw)
         self.assertNotIn('game:1',raw)
 
     def test_two_instances_claim_at_most_once(self):
-        self.observe(20);other=DeathLedger(self.path);other.observe('本人#123',100,'game:1',20,1100)
+        self.observe(21);other=DeathLedger(self.path);other.observe('本人#123',100,'game:1',21,1100)
         results=[]
         threads=[threading.Thread(target=lambda ledger=ledger:results.append(ledger.claim())) for ledger in [self.ledger,other]]
         for thread in threads:thread.start()
@@ -287,13 +309,13 @@ class LedgerTests(TempCase):
         self.assertEqual(sorted(results),[False,True])
 
     def test_corrupt_record_disables_automatic_download(self):
-        self.path.write_text('{bad json',encoding='utf-8');self.observe(20)
+        self.path.write_text('{bad json',encoding='utf-8');self.observe(21)
         self.assertTrue(self.ledger.failed)
         self.assertFalse(self.ledger.claim())
 
     def test_wrong_player_scores_not_used(self):
         payload={'activePlayer':{'riotId':'本人#1'},'allPlayers':[
-            {'riotId':'队友#2','isDead':True,'respawnTimer':20,'scores':{'deaths':25}},
+            {'riotId':'队友#2','isDead':True,'respawnTimer':21,'scores':{'deaths':25}},
             {'riotId':'本人#1','isDead':False,'respawnTimer':0,'scores':{'deaths':19}}]}
         _,snapshot=own_snapshot(payload)
         self.assertEqual(snapshot.deaths,19)
@@ -346,14 +368,14 @@ class ModeTests(TempCase):
         self.capture=Mock(backend='模拟',detail='')
         self.step(0,dead=False,count=19)
 
-    def step(self,now,dead=True,count=20,gray=False,timer=30):
+    def step(self,now,dead=True,count=21,gray=False,timer=30):
         self.capture.read.return_value=bytes([100,100,100,0] if gray else [40,150,210,0])*100
         self.runtime.step('本人#123',Snapshot(dead,timer,'Karthus',count),now,100+now,'game:1',1100+now,self.capture)
 
-    def study(self,count=20):
+    def study(self,count=21):
         self.step(1,count=count,gray=True);self.step(2,count=count,gray=True);self.step(4,count=count,gray=True)
 
-    def test_twentieth_death_still_waits_delay_and_operable_phase(self):
+    def test_twenty_first_death_still_waits_delay_and_operable_phase(self):
         for now in range(1,12):self.step(now,gray=False)
         self.assertFalse(self.ledger.current['claimed']);self.assertEqual(self.registry.starts,[])
         self.step(12,gray=True);self.step(12.2,gray=True)
@@ -361,8 +383,23 @@ class ModeTests(TempCase):
         self.download.start.assert_called_once()
         self.assertEqual(self.runtime.manager.adapter.spec['url'],GENSHIN_HOME)
 
+    def test_twenty_deaths_only_shows_normal_entertainment(self):
+        self.study(count=20)
+        self.assertEqual(self.registry.starts,['entertainment-bilibili'])
+        self.assertFalse(self.ledger.current['claimed'])
+        self.download.start.assert_not_called()
+
+    def test_easter_egg_reopens_previously_closed_official_window_once(self):
+        manager=self.registry.get(dict(id='genshin-penalty',name='原神官网',adapter='web',url=GENSHIN_HOME,pin=True))
+        manager.attempted=True
+        self.study(count=21)
+        self.assertEqual(self.registry.starts,['genshin-penalty'])
+        for now in range(5,10):self.step(now,count=21,gray=True)
+        self.assertEqual(self.registry.starts,['genshin-penalty'])
+        self.download.start.assert_called_once()
+
     def test_threshold_seen_alive_waits_next_allowed_death(self):
-        self.step(1,dead=False,count=20);self.assertEqual(self.registry.starts,[])
+        self.step(1,dead=False,count=21);self.assertEqual(self.registry.starts,[])
         self.step(2,gray=True);self.step(3,gray=True);self.step(5,gray=True)
         self.assertEqual(self.registry.starts,['genshin-penalty'])
 
@@ -381,7 +418,7 @@ class ModeTests(TempCase):
         self.assertEqual(self.registry.starts,['genshin-penalty'])
 
     def test_next_death_after_penalty_uses_entertainment_and_reuses_later(self):
-        self.study();self.step(5,dead=False,count=20)
+        self.study();self.step(5,dead=False,count=21)
         self.step(6,count=21,gray=True);self.step(7,count=21,gray=True);self.step(9,count=21,gray=True)
         self.assertEqual(self.registry.starts,['genshin-penalty','entertainment-bilibili'])
         self.step(10,dead=False,count=21)
@@ -468,7 +505,9 @@ class ModeTests(TempCase):
 class DownloadTests(TempCase):
     def setUp(self):
         super().setUp();self.ledger=DeathLedger(self.root/'ledger.json')
-        self.ledger.observe('本人',100,'game',20,1100);self.ledger.claim()
+        self.ledger.observe('本人',100,'game',21,1100);self.ledger.claim()
+        self.fallback=patch('official_download.verified_official_entry',return_value=None)
+        self.fallback_mock=self.fallback.start();self.addCleanup(self.fallback.stop)
 
     def test_simulated_official_entry_is_clicked_only_once(self):
         adapter=Mock();adapter.evaluate.side_effect=[{'state':'ready','id':'mock-download'},'submitted']
@@ -477,6 +516,7 @@ class DownloadTests(TempCase):
         self.assertEqual(adapter.evaluate.call_count,2)
         self.assertIn('启动器',self.ledger.current['status'])
         self.assertIn('未验证完成',self.ledger.current['status'])
+        adapter.navigate_home.assert_called_once()
 
     def test_cancelled_before_action_never_clicks(self):
         adapter=Mock();download=OfficialDownload(Mock());download.cancel();download.start(adapter,self.ledger);download.thread.join(3)
@@ -493,7 +533,7 @@ class DownloadTests(TempCase):
         download=OfficialDownload(Mock())
         with patch.object(download.cancelled,'wait',return_value=False):
             download.start(adapter,self.ledger);download.thread.join(3)
-        self.assertEqual(adapter.evaluate.call_count,12)
+        self.assertEqual(adapter.evaluate.call_count,60)
         self.assertIn('不可用',self.ledger.current['status'])
 
     def test_entry_click_failure_is_recorded_without_retries(self):
@@ -501,6 +541,23 @@ class DownloadTests(TempCase):
         download=OfficialDownload(Mock());download.start(adapter,self.ledger);download.thread.join(3)
         self.assertEqual(adapter.evaluate.call_count,2)
         self.assertIn('不自动重试',self.ledger.current['status'])
+
+    def test_verified_official_fallback_submits_one_mock_download(self):
+        from official_download import OFFICIAL_PC_ENTRY
+        self.fallback_mock.return_value=OFFICIAL_PC_ENTRY
+        adapter=Mock();adapter.evaluate.return_value={'state':'waiting'}
+        download=OfficialDownload(Mock())
+        with patch.object(download.cancelled,'wait',return_value=False):
+            download.start(adapter,self.ledger);download.thread.join(3)
+        adapter.request_download.assert_called_once_with(OFFICIAL_PC_ENTRY)
+        self.fallback_mock.assert_called_once()
+        self.assertIn('未验证完成',self.ledger.current['status'])
+
+    def test_website_verification_does_not_use_download_fallback(self):
+        adapter=Mock();adapter.evaluate.return_value={'state':'blocked'}
+        download=OfficialDownload(Mock());download.start(adapter,self.ledger);download.thread.join(3)
+        self.fallback_mock.assert_not_called()
+        adapter.request_download.assert_not_called()
 
     def test_new_match_uses_new_page_deduplication_key(self):
         first=click_expression({'state':'ready','id':'mock'},'match-a')
