@@ -67,7 +67,7 @@ try:
     time.sleep(0.25)
     w.activate(handles['anki'])
     time.sleep(0.12)
-    presentation = StudyWindow(w)
+    presentation = StudyWindow(w, target_kind="anki")
     if not presentation.show(handles['anki'], handles['game'], 'borderless', manual=True):
         raise RuntimeError('未能切到 Anki 测试窗口：' + presentation.last_reason)
     (folder / 'block').write_text('block', encoding='utf-8')

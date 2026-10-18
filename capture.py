@@ -151,7 +151,7 @@ class SceneCapture:
                     self.cameras[key] = self.module.create(device_idx=device_idx, output_idx=output_idx,
                         output_color="BGRA", backend="dxgi", processor_backend="numpy", max_buffer_len=2)
                 local = left - bounds.left, top - bounds.top, right - bounds.left, bottom - bounds.top
-                frame = self.cameras[key].grab(region=local, new_frame_only=False)
+                frame = self.cameras[key].grab(region=local, new_frame_only=True)
                 if frame is None or frame.size == 0:
                     return None
                 import numpy as np

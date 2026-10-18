@@ -67,13 +67,26 @@ try:
     w.set_topmost(handles['anki'], True)
     w.activate(handles['anki'])
     time.sleep(0.1)
-    presentation = StudyWindow(w)
+    presentation = StudyWindow(w, target_kind="anki")
     if not presentation.show(handles['anki'], handles['game'], 'borderless', manual=True):
         raise RuntimeError('未能准备 Anki 覆盖窗口：' + presentation.last_reason)
     w.activate(handles['game'])
     time.sleep(0.1)
     if w.current_game() != handles['game'] or w.is_iconic(handles['anki']):
         raise RuntimeError('未建立游戏前台且 Anki 仍显示的场景')
+    # 用重复激活游戏替身模拟连续点击造成的焦点回跳，不向任何窗口发送鼠标输入。
+    for _ in range(6):
+        w.activate(handles['game'])
+        presentation.observe_foreground(time.monotonic())
+        time.sleep(0.08)
+        if w.current_game() != handles['game'] or not w.is_topmost(handles['anki']):
+            raise RuntimeError('置顶维护改变了键盘焦点或丢失了 Anki 层级')
+    w.set_topmost(handles['anki'], False)
+    time.sleep(0.55)
+    presentation.observe_foreground(time.monotonic())
+    if not w.is_topmost(handles['anki']) or w.current_game() != handles['game']:
+        raise RuntimeError('置顶维护未恢复层级，或意外抢走焦点')
+    print('PASS: 游戏替身反复取得焦点，Anki 保持置顶；丢失置顶后恢复，未反复激活 Anki。')
     (folder / 'block').write_text('block', encoding='utf-8')
     deadline = time.monotonic() + 2
     while not (folder / 'blocked').exists() and time.monotonic() < deadline:

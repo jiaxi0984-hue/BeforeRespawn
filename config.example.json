@@ -5,7 +5,38 @@
   "poll_seconds": 0.2,
   "gray_threshold": 0.82,
   "confirmation_frames": 2,
-  "capture_region": [0.12, 0.12, 0.88, 0.70],
-  "preserve_existing_anki": false,
-  "game_display_mode": "borderless"
+  "capture_region": [
+    0.12,
+    0.12,
+    0.88,
+    0.7
+  ],
+  "death_switch_delay": 3.0,
+  "persistent_anki_topmost": true,
+  "game_display_mode": "borderless",
+  "schema_version": 2,
+  "persistent_target_topmost": true,
+  "mode": "study",
+  "study_target": "anki",
+  "entertainment_site": "bilibili",
+  "death_penalty_enabled": false,
+  "targets": [
+    {
+      "id": "anki",
+      "name": "Anki",
+      "adapter": "anki",
+      "command": [],
+      "process_path": "",
+      "title_contains": "",
+      "window_class": "",
+      "pin": true
+    },
+    {
+      "id": "bbdc-web",
+      "name": "不背单词官方网页工具",
+      "adapter": "web",
+      "url": "https://bbdc.cn/lexis/login",
+      "pin": true
+    }
+  ]
 }

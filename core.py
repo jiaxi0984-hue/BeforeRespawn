@@ -1,6 +1,7 @@
 """只处理状态转换，不读取游戏内存，也不操作窗口。"""
 from dataclasses import dataclass
 from typing import Literal
+import time
 
 
 @dataclass(frozen=True)
@@ -8,6 +9,7 @@ class Snapshot:
     dead: bool
     timer: float
     champion: str = ""
+    deaths: int | None = None
 
 
 @dataclass(frozen=True)
@@ -71,8 +73,11 @@ class GrayGate:
 class DeathSession:
     """每次死亡最多发出一次切到 Anki 的请求。"""
 
-    def __init__(self, lead=3.0):
+    def __init__(self, lead=3.0, delay=3.0):
         self.lead = lead
+        self.delay = delay
+        self.dead_since = None
+        self.wait_reason = "等待本人死亡"
         self.previous = None
         self.eligible = False
         self.attempted = False
@@ -80,8 +85,9 @@ class DeathSession:
         self.engaged = False
 
     def update(self, sample: Snapshot,
-               foreground: Literal["game", "anki", "other"], gray_confirmed=False,
-               manual_return_confirmed=True) -> str | None:
+               foreground: str, gray_confirmed=False,
+               manual_return_confirmed=False, now=None) -> str | None:
+        now = time.monotonic() if now is None else now
         if self.previous is None:
             # 中途启动且已经死亡时先观察，下一次完整死亡再触发。
             self.previous = sample.dead
@@ -96,12 +102,15 @@ class DeathSession:
             should_return = self.engaged
             self.engaged = False
             self.finished = True
+            self.dead_since = None
+            self.wait_reason = "已复活，取消本次切出"
             return "return" if should_return else None
         if not sample.dead:
             return None
 
         if new_death:
-            self.eligible = foreground == "game"
+            self.eligible = True
+            self.dead_since = now
             self.attempted = False
             self.finished = False
             self.engaged = False
@@ -112,25 +121,33 @@ class DeathSession:
             self.finished = True
             return "manual_return"
 
-        if sample.timer > 0 and sample.timer <= self.lead:
+        if sample.timer <= self.lead or (not self.engaged and sample.timer <= self.lead + 0.5):
             self.finished = True
+            self.wait_reason = "接近复活或倒计时为零，取消本次切出"
             should_return = self.engaged
             self.engaged = False
             return "return" if should_return else None
 
         if not self.finished and self.eligible and not self.attempted:
-            if foreground != "game":
-                # 等待灰屏时用户已主动切走，本次死亡不再抢窗口。
-                self.finished = True
+            if now - self.dead_since < self.delay:
+                self.wait_reason = "等待死亡后切出延迟"
             elif gray_confirmed:
                 self.attempted = True
+                self.wait_reason = "延迟已到且灰屏已确认"
                 return "study"
+            else:
+                self.wait_reason = "等待可操作阶段结束的灰屏证据或 Anki 就绪"
         return None
 
     def confirm_study(self, success: bool):
         self.engaged = success
         if not success:
             self.finished = True
+
+    def cancel(self, reason):
+        self.finished = True
+        self.wait_reason = reason
+        self.dead_since = None
 
 
 def own_snapshot(payload: dict, identity: str = "") -> tuple[str, Snapshot]:
@@ -157,4 +174,7 @@ def own_snapshot(payload: dict, identity: str = "") -> tuple[str, Snapshot]:
     prefix = "game_character_displayname_"
     if raw.startswith(prefix):
         champion = raw[len(prefix):]
-    return name, Snapshot(player["isDead"], timer, champion)
+    deaths = player.get('scores', {}).get('deaths') if isinstance(player.get('scores'), dict) else None
+    if type(deaths) is not int or deaths < 0:
+        deaths = None
+    return name, Snapshot(player["isDead"], timer, champion, deaths)

@@ -7,6 +7,7 @@
 | DXcam | 0.3.0 | MIT | https://github.com/ra1nty/DXcam |
 | comtypes | 1.4.17 | MIT | https://github.com/enthought/comtypes |
 | NumPy | 2.5.4 | BSD-3-Clause；分发包中的附带组件可能有其他声明 | https://numpy.org/ |
+| websocket-client | 1.9.2 | Apache-2.0 | https://pypi.org/project/websocket-client/ |
 
 安装后的完整许可文件位于各自的 `.dist-info/licenses` 等目录。若自行重新分发第三方依赖或打包可执行文件，应随分发包保留相应版权声明和许可文本。
 

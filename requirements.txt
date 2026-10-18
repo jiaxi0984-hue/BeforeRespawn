@@ -1,3 +1,4 @@
 dxcam==0.3.0
 comtypes==1.4.17
 numpy==2.5.4
+websocket-client==1.9.2

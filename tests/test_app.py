@@ -11,7 +11,9 @@ if (APP_DIR / '_deps').is_dir():
     sys.path.insert(0, str(APP_DIR / '_deps'))
 from core import DeathSession, FrameStats, GrayGate, Snapshot, frame_stats, own_snapshot
 from app import App, DEFAULTS
-from automation import AnkiManager, MatchTracker
+from automation import MatchTracker
+from adapters import TargetManager
+from penalty import DeathLedger
 from discovery import executable_from, locate_anki
 from game_api import GameData, NoRedirect
 from presentation import StudyWindow
@@ -20,7 +22,7 @@ from native import Windows
 
 class SessionTests(unittest.TestCase):
     def session(self):
-        state = DeathSession(3)
+        state = DeathSession(3, delay=0)
         state.update(Snapshot(False, 0, 'Ahri'), 'game')
         return state
 
@@ -46,7 +48,7 @@ class SessionTests(unittest.TestCase):
         self.assertIsNone(s.update(Snapshot(True, 1, 'Ahri'), 'game', True))
 
     def test_initial_dead_waits_for_next_cycle(self):
-        s = DeathSession(3)
+        s = DeathSession(3, delay=0)
         self.assertIsNone(s.update(Snapshot(True, 25), 'game', True))
         self.assertIsNone(s.update(Snapshot(True, 15), 'game', True))
         self.assertIsNone(s.update(Snapshot(False, 0), 'game'))
@@ -56,20 +58,20 @@ class SessionTests(unittest.TestCase):
         s = self.session()
         s.update(Snapshot(True, 30), 'game', True)
         s.confirm_study(True)
-        self.assertEqual(s.update(Snapshot(True, 25), 'game', True), 'manual_return')
+        self.assertEqual(s.update(Snapshot(True, 25), 'game', True, manual_return_confirmed=True), 'manual_return')
         self.assertIsNone(s.update(Snapshot(True, 20), 'game', True))
         self.assertFalse(s.engaged)
 
-    def test_does_not_interrupt_other_app_on_death(self):
+    def test_confirmed_death_switches_from_other_app(self):
         s = self.session()
-        self.assertIsNone(s.update(Snapshot(True, 30), 'other', True))
+        self.assertEqual(s.update(Snapshot(True, 30), 'other', True), 'study')
         self.assertIsNone(s.update(Snapshot(True, 25), 'game', True))
 
     def test_user_changes_app_while_waiting_for_gray(self):
         s = self.session()
         s.update(Snapshot(True, 30), 'game', False)
         self.assertIsNone(s.update(Snapshot(True, 22), 'other'))
-        self.assertIsNone(s.update(Snapshot(True, 21), 'game', True))
+        self.assertEqual(s.update(Snapshot(True, 21), 'other', True), 'study')
 
     def test_passive_heroes_wait_for_gray_instead_of_exclusion(self):
         for champion in ['Karthus', 'Sion', 'KogMaw']:
@@ -83,12 +85,12 @@ class SessionTests(unittest.TestCase):
         s.confirm_study(False)
         self.assertIsNone(s.update(Snapshot(True, 25), 'game', True))
 
-    def test_timer_reaches_zero_but_dead_wait_for_state(self):
+    def test_zero_timer_returns_even_before_dead_flag_updates(self):
         s = self.session()
-        s.update(Snapshot(True, 0), 'game', True)
+        s.update(Snapshot(True, 30), 'game', True)
         s.confirm_study(True)
-        self.assertIsNone(s.update(Snapshot(True, 0), 'anki'))
-        self.assertEqual(s.update(Snapshot(False, 0), 'anki'), 'return')
+        self.assertEqual(s.update(Snapshot(True, 0), 'anki'), 'return')
+        self.assertIsNone(s.update(Snapshot(False, 0), 'anki'))
 
     def test_can_switch_next_death(self):
         s = self.session()
@@ -329,104 +331,6 @@ class FakeWindows:
         return False
 
 
-class AnkiTests(unittest.TestCase):
-    def manager(self, existing=False):
-        w = FakeWindows(existing)
-        launch = Mock(side_effect=lambda path: setattr(w, 'running', True))
-        m = AnkiManager(w, Mock(), launch)
-        return w, m, launch
-
-    def test_no_launch_before_match(self):
-        w, m, launch = self.manager()
-        m.ensure('Anki.exe', 0)
-        launch.assert_not_called()
-
-    def test_missing_anki_starts_once_per_match(self):
-        w, m, launch = self.manager()
-        m.begin(0)
-        for now in range(5):
-            m.ensure('Anki.exe', now)
-            m.poll(now)
-        launch.assert_called_once_with('Anki.exe')
-
-    def test_preexisting_reused_and_closed_by_default(self):
-        w, m, launch = self.manager(True)
-        m.begin(0)
-        m.ensure('Anki.exe', 0)
-        m.end(2)
-        launch.assert_not_called()
-        self.assertEqual(w.closes, [3])
-
-    def test_optional_preserve_preexisting(self):
-        w, m, launch = self.manager(True)
-        m.begin(0, preserve_existing=True)
-        m.end(2)
-        self.assertEqual(w.closes, [])
-
-    def test_newly_launched_closes_even_with_preserve_option(self):
-        w, m, launch = self.manager()
-        m.begin(0, preserve_existing=True)
-        m.ensure('Anki.exe', 0)
-        w.anki = True
-        m.poll(1)
-        m.end(2)
-        self.assertEqual(w.closes, [3])
-
-    def test_existing_process_without_window_not_duplicated(self):
-        w, m, launch = self.manager()
-        w.running = True
-        m.begin(0)
-        m.ensure('Anki.exe', 0)
-        launch.assert_not_called()
-        self.assertTrue(m.pending)
-
-    def test_late_window_after_game_end_is_closed(self):
-        w, m, launch = self.manager()
-        m.begin(0)
-        m.ensure('Anki.exe', 0)
-        m.end(2)
-        w.anki = True
-        m.poll(3)
-        self.assertEqual(w.closes, [3])
-
-    def test_startup_focus_returned_to_game(self):
-        w, m, launch = self.manager()
-        m.begin(0)
-        m.ensure('Anki.exe', 0)
-        w.anki, w.front = True, 'anki'
-        m.poll(1)
-        self.assertEqual(w.activations, [9])
-
-    def test_user_pause_preserves_anki(self):
-        w, m, launch = self.manager(True)
-        m.begin(0)
-        m.detach()
-        m.poll(2)
-        self.assertEqual(w.closes, [])
-
-    def test_user_closed_anki_is_not_immediately_reopened(self):
-        w, m, launch = self.manager(True)
-        m.begin(0)
-        w.anki = w.running = False
-        m.poll(1)
-        m.ensure('Anki.exe', 2)
-        launch.assert_not_called()
-
-    def test_late_discovery_launches_in_current_match(self):
-        w, m, launch = self.manager()
-        m.begin(0)
-        m.ensure('', 0)
-        m.ensure('found/Anki.exe', 1)
-        launch.assert_called_once_with('found/Anki.exe')
-
-    def test_end_is_idempotent(self):
-        w, m, launch = self.manager(True)
-        m.begin(0)
-        m.end(1)
-        m.end(2)
-        self.assertEqual(w.closes, [3])
-
-
 class DiscoveryTests(unittest.TestCase):
     def test_non_default_drive_style_install_discovered_without_cache(self):
         with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent) as folder:
@@ -493,7 +397,7 @@ class ApiTests(unittest.TestCase):
 
 
 class IntegrationTests(unittest.TestCase):
-    def scenario(self, frames, present=False):
+    def scenario(self, frames, present=False, overrides=None):
         w = FakeWindows(present)
         class Stop:
             step = 0
@@ -521,6 +425,7 @@ class IntegrationTests(unittest.TestCase):
                     app.config['game_display_mode'] = current['mode']
                 return '本人#123', Snapshot(current.get('dead', False), current.get('timer', 20), 'Ahri')
         class Capture:
+            def close(self): pass
             def read(self, *args):
                 pixel = [100, 100, 100, 0] if frames[stop.step].get('gray') else [40, 150, 210, 0]
                 return bytes(pixel) * 100
@@ -534,26 +439,38 @@ class IntegrationTests(unittest.TestCase):
             return original_restore(hwnd, activate)
         w.restore = restore
         config = DEFAULTS.copy()
+        config['death_switch_delay'] = 0
+        config.update(overrides or {})
         app.config = dict(config)
-        with patch('app.GameData', Source), patch('app.SceneCapture', Capture), patch('app.time.monotonic', side_effect=lambda: float(stop.step)), patch('app.AnkiManager', side_effect=lambda windows, report: AnkiManager(windows, report, launch)):
+        w.process_identity = lambda pid: dict(pid=pid, created=1, path='fixture.exe')
+        class Adapter:
+            spec = dict(id='anki',name='Anki',pin=True)
+            reason = 'test'
+            def find(self): return 3 if w.anki else None
+            def running(self): return w.running
+            def start(self): launch('Anki.exe')
+        manager = TargetManager(Adapter(), lambda text: app.events.put(('log',text)))
+        app.registry = Mock(get=lambda spec:manager)
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent) as state_dir, patch('app.GameData', Source), patch('app.SceneCapture', Capture), patch('app.time.monotonic', side_effect=lambda: float(stop.step)):
+            app.ledger = DeathLedger(Path(state_dir)/'penalty.json')
             app.monitor(config, stop)
         return launches, w, list(app.events.queue)
 
-    def test_two_games_open_switch_close_automatically(self):
+    def test_two_games_launch_once_keep_and_reuse(self):
         frames = [dict(pid=None), dict(pid=1, ready=True), dict(pid=1, ready=True, dead=True, gray=True), dict(pid=1, ready=True, dead=True, gray=True), dict(pid=1, ready=True, end=True), dict(pid=1, ready=True, end=True), dict(pid=None), dict(pid=None), dict(pid=None), dict(pid=None), dict(pid=2, ready=True), dict(pid=2, ready=True, end=True)]
         launches, w, events = self.scenario(frames)
-        self.assertEqual(launches, [1, 10])
-        self.assertEqual(w.closes, [3, 3])
+        self.assertEqual(launches, [3])
+        self.assertEqual(w.closes, [])
         self.assertIn(3, w.activations)
-        self.assertIn(9, w.activations)
+        self.assertTrue(w.anki)
         self.assertTrue(any('等待下一局' in text for _, text in events))
 
     def test_network_interruption_does_not_close_anki(self):
         frames = [dict(pid=1, ready=True), dict(pid=1), dict(pid=1, ready=True), dict(pid=1, ready=True, end=True)]
         launches, w, events = self.scenario(frames)
-        self.assertEqual(launches, [0])
-        self.assertEqual(w.closes, [3])
-        self.assertTrue(any('数据暂不可用' in text for _, text in events))
+        self.assertEqual(launches, [])
+        self.assertEqual(w.closes, [])
+        self.assertTrue(any('暂不可用' in text for _, text in events))
 
     def test_no_game_never_launches_anki(self):
         launches, w, events = self.scenario([dict(pid=None)] * 3)
@@ -566,16 +483,16 @@ class IntegrationTests(unittest.TestCase):
 
     def test_pausing_during_match_does_not_close_anki(self):
         launches, w, events = self.scenario([dict(pid=1, ready=True)])
-        self.assertEqual(launches, [0])
+        self.assertEqual(launches, [])
         self.assertEqual(w.closes, [])
 
-    def test_api_timeout_during_death_preserves_reference_and_still_switches(self):
+    def test_api_timeout_cancels_pending_cutout_for_this_death(self):
         frames = [dict(pid=1, ready=True), dict(pid=1, ready=True, dead=True, gray=True),
                   dict(pid=1), dict(pid=1, ready=True, dead=True, gray=True),
                   dict(pid=1, ready=True, dead=True, gray=True), dict(pid=1, ready=True, end=True)]
         launches, w, events = self.scenario(frames)
-        self.assertEqual(launches, [0])
-        self.assertIn(3, w.activations)
+        self.assertEqual(launches, [])
+        self.assertNotIn(3, w.activations)
         self.assertFalse(w.pinned)
 
     def test_borderless_focus_bounce_does_not_discard_revive_return(self):
@@ -587,8 +504,8 @@ class IntegrationTests(unittest.TestCase):
                   dict(pid=1, ready=True, dead=True, timer=2),
                   dict(pid=1, ready=True), dict(pid=1, ready=True, end=True)]
         launches, w, events = self.scenario(frames)
-        self.assertEqual(launches, [0])
-        self.assertTrue(any('保留本次复活返回记录' in text for _, text in events))
+        self.assertEqual(launches, [2])
+        self.assertTrue(any('持续置顶正常' in text for _, text in events))
         self.assertTrue(any('返回游戏成功' in text for _, text in events))
         self.assertFalse(any('已主动返回游戏' in text for _, text in events))
         self.assertFalse(any('模式=auto' in text for _, text in events))
@@ -605,7 +522,7 @@ class IntegrationTests(unittest.TestCase):
                    dict(pid=1, ready=True), dict(pid=1, ready=True, end=True)]
         _, w, events = self.scenario(frames)
         self.assertIn(('minimize', 3), w.operations)
-        self.assertTrue(any('游戏取得前台且 Anki 不再遮挡' in text for _, text in events))
+        self.assertTrue(any('游戏取得前台且目标窗口不再遮挡' in text for _, text in events))
         self.assertFalse(any('已主动返回游戏' in text for _, text in events))
 
     def test_return_continues_after_revive_trigger_during_api_outage(self):
@@ -615,7 +532,7 @@ class IntegrationTests(unittest.TestCase):
                   dict(pid=1, delay_return=True), dict(pid=1),
                   dict(pid=1, ready=True), dict(pid=1, ready=True, end=True)]
         launches, w, events = self.scenario(frames)
-        self.assertEqual(launches, [0])
+        self.assertEqual(launches, [2])
         self.assertIn(9, w.activations)
         self.assertTrue(any('返回游戏成功' in text for _, text in events))
         self.assertFalse(any('返回游戏失败' in text for _, text in events))
@@ -625,7 +542,7 @@ class IntegrationTests(unittest.TestCase):
 class PresentationTests(unittest.TestCase):
     def test_borderless_pins_and_focuses_without_minimizing(self):
         w = FakeWindows(True)
-        p = StudyWindow(w)
+        p = StudyWindow(w, target_kind="anki")
         self.assertTrue(p.show(3, 9, 'borderless'))
         self.assertTrue(w.pinned)
         self.assertEqual(w.front, 'anki')
@@ -637,7 +554,7 @@ class PresentationTests(unittest.TestCase):
     def test_fullscreen_and_auto_minimize_then_restore_game(self):
         for mode in ['fullscreen', 'auto']:
             w, p = FakeWindows(True), None
-            p = StudyWindow(w)
+            p = StudyWindow(w, target_kind="anki")
             self.assertTrue(p.show(3, 9, mode))
             self.assertIn(9, w.iconic)
             self.assertTrue(w.pinned)
@@ -649,14 +566,14 @@ class PresentationTests(unittest.TestCase):
     def test_original_topmost_state_is_preserved(self):
         w = FakeWindows(True)
         w.pinned = True
-        p = StudyWindow(w)
+        p = StudyWindow(w, target_kind="anki")
         p.show(3, 9, 'borderless')
         p.release()
         self.assertTrue(w.pinned)
 
     def test_other_application_never_stolen_on_return(self):
         w = FakeWindows(True)
-        p = StudyWindow(w)
+        p = StudyWindow(w, target_kind="anki")
         p.show(3, 9, 'fullscreen')
         w.front = 'other'
         self.assertFalse(p.release())
@@ -664,17 +581,18 @@ class PresentationTests(unittest.TestCase):
         self.assertFalse(w.pinned)
         self.assertNotIn(9, w.iconic)
 
-    def test_no_automatic_show_if_user_already_left_game(self):
+    def test_automatic_show_works_after_manual_switch(self):
         w = FakeWindows(True)
         w.front = 'other'
-        p = StudyWindow(w)
-        self.assertFalse(p.show(3, 9))
-        self.assertEqual(w.operations, [])
+        p = StudyWindow(w, target_kind="anki")
+        self.assertTrue(p.show(3, 9))
+        self.assertEqual(w.front, 'anki')
+        p.release()
 
     def test_manual_test_can_start_from_helper_window(self):
         w = FakeWindows(True)
         w.front = 'other'
-        p = StudyWindow(w)
+        p = StudyWindow(w, target_kind="anki")
         self.assertTrue(p.show(3, 9, manual=True))
         p.release()
         self.assertFalse(w.pinned)
@@ -687,7 +605,7 @@ class PresentationTests(unittest.TestCase):
             calls.append(hwnd)
             return original(hwnd) if len(calls) > 1 else False
         w.activate = activate
-        p = StudyWindow(w)
+        p = StudyWindow(w, target_kind="anki")
         with patch('presentation.time.sleep'):
             self.assertTrue(p.show(3, 9, 'fullscreen'))
         self.assertEqual(len(calls), 2)
@@ -697,7 +615,7 @@ class PresentationTests(unittest.TestCase):
         w = FakeWindows(True)
         original = w.activate
         w.activate = lambda hwnd: False if w.front == 'game' else original(hwnd)
-        p = StudyWindow(w)
+        p = StudyWindow(w, target_kind="anki")
         with patch('presentation.time.sleep'):
             self.assertTrue(p.show(3, 9, 'borderless'))
         self.assertIn(('minimize', 9), w.operations)
@@ -706,7 +624,7 @@ class PresentationTests(unittest.TestCase):
     def test_total_failure_unpins_and_cleans_owned_state(self):
         w = FakeWindows(True)
         w.activate = Mock(return_value=False)
-        p = StudyWindow(w)
+        p = StudyWindow(w, target_kind="anki")
         with patch('presentation.time.sleep'):
             self.assertFalse(p.show(3, 9, 'fullscreen'))
         self.assertFalse(w.pinned)
@@ -717,14 +635,14 @@ class PresentationTests(unittest.TestCase):
     def test_focus_is_not_reported_as_success_when_topmost_fails(self):
         w = FakeWindows(True)
         w.set_topmost = Mock(return_value=False)
-        p = StudyWindow(w)
+        p = StudyWindow(w, target_kind="anki")
         with patch('presentation.time.sleep'):
             self.assertFalse(p.show(3, 9, 'borderless'))
         self.assertFalse(p.owned)
 
     def test_return_activation_retries(self):
         w = FakeWindows(True)
-        p = StudyWindow(w)
+        p = StudyWindow(w, target_kind="anki")
         p.show(3, 9, 'fullscreen')
         original, calls = w.restore, []
         def restore(hwnd, activate=True):
@@ -759,7 +677,7 @@ class CaptureBackendTests(unittest.TestCase):
         pixels = cap.read(9)
         self.assertEqual(len(pixels), 96 * 54 * 4)
         self.assertEqual(cap.backend, 'DXGI')
-        camera.grab.assert_called_once_with(region=(120, 120, 1320, 720), new_frame_only=False)
+        camera.grab.assert_called_once_with(region=(120, 120, 1320, 720), new_frame_only=True)
         cap.gdi.read.assert_not_called()
         cap.close()
 
@@ -782,7 +700,7 @@ class CaptureBackendTests(unittest.TestCase):
 class AsyncReturnTests(unittest.TestCase):
     def showing(self):
         w = FakeWindows(True)
-        p = StudyWindow(w)
+        p = StudyWindow(w, target_kind="anki")
         self.assertTrue(p.show(3, 9, 'fullscreen'))
         return w, p
 
@@ -832,22 +750,24 @@ class AsyncReturnTests(unittest.TestCase):
         self.assertFalse(p.returning)
         self.assertEqual(p.poll_return(4), 'idle')
 
-    def test_user_already_in_other_application_is_preserved(self):
+    def test_revive_return_works_from_other_application(self):
         w, p = self.showing()
         w.front = 'other'
         w.activations.clear()
-        self.assertEqual(p.request_return(0), 'cancelled')
-        self.assertEqual(w.front, 'other')
-        self.assertEqual(w.activations, [])
+        self.assertEqual(p.request_return(0), 'returned')
+        self.assertEqual(w.front, 'game')
+        self.assertIn(9, w.activations)
 
-    def test_new_input_in_other_application_cancels_retry(self):
+    def test_other_application_input_does_not_drop_return_task(self):
         w, p = self.showing()
         w.restore = Mock(return_value=False)
         p.request_return(0)
         w.front = 'other'
         self.assertEqual(p.poll_return(0.1), 'pending')
         w.input_stamp, w.other_hwnd = 1, 200
-        self.assertEqual(p.poll_return(0.3), 'cancelled')
+        self.assertEqual(p.poll_return(0.3), 'pending')
+        self.assertTrue(p.returning)
+        self.assertEqual(p.poll_return(3.1), 'failed')
         self.assertFalse(p.returning)
         self.assertFalse(w.pinned)
         self.assertEqual(w.front, 'other')
@@ -931,17 +851,17 @@ class NativeReturnTests(unittest.TestCase):
 class BorderlessReturnTests(unittest.TestCase):
     def showing(self):
         w, p = FakeWindows(True), None
-        p = StudyWindow(w)
+        p = StudyWindow(w, target_kind="anki")
         self.assertTrue(p.show(3, 9, 'borderless'))
         return w, p
 
     def test_game_focus_alone_does_not_cancel_while_anki_visible(self):
         w, p = self.showing()
         w.front = 'game'
-        self.assertEqual(p.observe_foreground(1), 'game_under_anki')
+        self.assertEqual(p.observe_foreground(1), 'game_under_target')
         self.assertTrue(p.owned)
         self.assertTrue(w.pinned)
-        s = DeathSession(3)
+        s = DeathSession(3, delay=0)
         s.update(Snapshot(False, 0), 'game')
         s.update(Snapshot(True, 20), 'game', True)
         s.confirm_study(True)
@@ -949,28 +869,29 @@ class BorderlessReturnTests(unittest.TestCase):
         self.assertTrue(s.engaged)
         self.assertEqual(s.update(Snapshot(True, 2), 'game', manual_return_confirmed=False), 'return')
 
-    def test_focus_recovery_is_bounded_but_return_record_is_retained(self):
+    def test_continuous_pin_never_repeatedly_activates_window(self):
         w, p = self.showing()
         w.front = 'game'
         w.activate = Mock(return_value=False)
         for tick in range(20):
-            self.assertEqual(p.observe_foreground(tick * 0.2), 'game_under_anki')
-        self.assertEqual(w.activate.call_count, 3)
+            self.assertEqual(p.observe_foreground(tick * 0.2), 'game_under_target')
+        self.assertEqual(w.activate.call_count, 0)
         self.assertTrue(p.owned)
 
-    def test_confirmed_user_minimize_releases_overlay(self):
+    def test_user_minimize_retains_revive_return_context(self):
         w, p = self.showing()
         w.iconic.add(3)
         w.front = 'game'
-        self.assertEqual(p.observe_foreground(1), 'anki_hidden')
-        self.assertFalse(p.owned)
+        self.assertEqual(p.observe_foreground(1), 'target_hidden')
+        self.assertTrue(p.owned)
+        self.assertEqual(p.request_return(2), 'returned')
         self.assertFalse(w.pinned)
 
-    def test_visiting_other_app_only_suspends_overlay(self):
+    def test_visiting_other_app_keeps_pin_and_return_context(self):
         w, p = self.showing()
         w.front = 'other'
         self.assertEqual(p.observe_foreground(1), 'other')
-        self.assertFalse(w.pinned)
+        self.assertTrue(w.pinned)
         self.assertTrue(p.owned)
         w.front = 'anki'
         self.assertEqual(p.observe_foreground(2), 'anki')
@@ -1016,12 +937,12 @@ class BorderlessReturnTests(unittest.TestCase):
         w.minimize = Mock(return_value=False)
         self.assertEqual(p.request_return(1), 'pending')
         self.assertEqual(p.poll_return(4.1), 'failed')
-        self.assertIn('Anki遮挡已清除=False', p.last_return_reason)
+        self.assertIn('目标窗口遮挡已清除=False', p.last_return_reason)
 
     def test_preserve_original_pin_still_requires_hidden_anki(self):
         w = FakeWindows(True)
         w.pinned = True
-        p = StudyWindow(w)
+        p = StudyWindow(w, target_kind="anki")
         p.show(3, 9, 'borderless')
         w.front = 'game'
         self.assertEqual(p.request_return(1), 'returned')

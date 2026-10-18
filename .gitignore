@@ -2,6 +2,7 @@
 /config.json
 /config.tmp
 /runtime-python.txt
+/runtime/
 *.log
 .env
 .env.*

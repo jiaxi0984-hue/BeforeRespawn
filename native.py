@@ -101,6 +101,46 @@ class Windows:
         self._process_cache = time.monotonic(), result
         return result
 
+    def process_identity(self, pid):
+        """完整映像路径加创建时间，防止进程号被复用后误认窗口。"""
+        handle = self.k.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return None
+        try:
+            text, size = C.create_unicode_buffer(32768), W.DWORD(32768)
+            if not self.k.QueryFullProcessImageNameW(handle, 0, text, C.byref(size)):
+                return None
+            self.k.GetProcessTimes.argtypes = [W.HANDLE, C.POINTER(W.FILETIME), C.POINTER(W.FILETIME),
+                                               C.POINTER(W.FILETIME), C.POINTER(W.FILETIME)]
+            self.k.GetProcessTimes.restype = W.BOOL
+            created, exited, kernel, user = W.FILETIME(), W.FILETIME(), W.FILETIME(), W.FILETIME()
+            if not self.k.GetProcessTimes(handle, C.byref(created), C.byref(exited), C.byref(kernel), C.byref(user)):
+                return None
+            stamp = (created.dwHighDateTime << 32) | created.dwLowDateTime
+            return dict(pid=int(pid), path=str(Path(text.value).resolve()), created=stamp)
+        finally:
+            self.k.CloseHandle(handle)
+
+    def window_inventory(self):
+        """只枚举可见主窗口和进程元数据，不读取其内容或浏览历史。"""
+        matches, identities = [], {}
+        @self.callback
+        def visit(hwnd, _):
+            if not self.u.IsWindowVisible(hwnd) or self.u.GetWindow(hwnd, 4):
+                return True
+            pid = W.DWORD()
+            self.u.GetWindowThreadProcessId(hwnd, C.byref(pid))
+            if pid.value not in identities:
+                identities[pid.value] = self.process_identity(pid.value)
+            identity = identities[pid.value]
+            if identity:
+                cls = C.create_unicode_buffer(256)
+                self.u.GetClassNameW(hwnd, cls, len(cls))
+                matches.append(dict(hwnd=hwnd, title=self.title(hwnd), window_class=cls.value, **identity))
+            return True
+        self.u.EnumWindows(visit, 0)
+        return matches
+
     def anki_running(self):
         return bool(self.find('anki') or any(name in {'anki.exe', 'ankiw.exe', 'anki-launcher.exe'}
                                             for _, name in self.processes()))
