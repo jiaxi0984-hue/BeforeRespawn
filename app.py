@@ -19,7 +19,8 @@ from adapters import AdapterRegistry
 from mode_config import migrate_config, validate_config, selected_spec, WEBSITES
 from mode_runtime import ModeRuntime
 from penalty import DeathLedger
-from software_catalog import installed_desktop_apps
+from software_catalog import scan_learning_apps, detected_target
+from catalog import LearningCatalog, online_candidates
 
 ROOT = Path(__file__).resolve().parent
 DEFAULTS = migrate_config()
@@ -37,6 +38,7 @@ class App:
         self.pin_tester = None
         self.runtime = None
         self.registry = AdapterRegistry(self.windows, ROOT, lambda text: self.events.put(('log', text)))
+        self.catalog = LearningCatalog(user_path=ROOT/'runtime'/'catalog-overrides.json')
         self.ledger = DeathLedger(ROOT / 'runtime' / 'penalty.json', lambda text: self.events.put(('log', text)))
         settings = ROOT / 'config.json'
         if not settings.exists():
@@ -88,7 +90,7 @@ class App:
         self.study_box.grid(row=3,column=0,sticky='ew',pady=4)
         self.target_box=ttk.Combobox(self.study_box,textvariable=self.target_choice,state='readonly',width=25,values=[t['name'] for t in self.config['targets']])
         self.target_box.pack(side='left',padx=(0,8));self.target_box.bind('<<ComboboxSelected>>',self.choose_target)
-        for label,command in [('自动发现桌面软件',self.discover_apps),('添加 / 配置桌面软件',self.add_desktop),('添加学习网页',self.add_web)]:
+        for label,command in [('检测学习软件',self.discover_apps),('添加 / 配置桌面软件',self.add_desktop),('搜索学习官网',self.add_web)]:
             ttk.Button(self.study_box,text=label,command=command).pack(side='left',padx=3)
         ttk.Checkbutton(self.study_box,text='此目标允许置顶',variable=self.target_pin,command=self.save).pack(side='left',padx=4)
         self.fun_box=ttk.LabelFrame(box,text='娱乐目标',padding=10)
@@ -96,7 +98,7 @@ class App:
         sites=ttk.Combobox(self.fun_box,textvariable=self.site,state='readonly',width=22,values=[v[0] for v in WEBSITES.values()]);sites.pack(anchor='w')
         sites.bind('<<ComboboxSelected>>',lambda _:self.save())
         ttk.Checkbutton(self.fun_box,text='启用惩罚彩蛋（默认关闭）',variable=self.penalty_enabled,command=self.save).pack(anchor='w',pady=4)
-        ttk.Label(self.fun_box,text='死亡超过20次可触发惩罚彩蛋',wraplength=940).pack(anchor='w')
+        ttk.Label(self.fun_box,text='单局死亡达到20次可触发一次惩罚彩蛋，下一局重新计数',wraplength=940).pack(anchor='w')
         ttk.Label(self.fun_box,textvariable=self.penalty_status,foreground='#155e75',wraplength=940).pack(anchor='w',pady=4)
         ttk.Label(box,textvariable=self.path_label,wraplength=940,foreground='#155e75').grid(row=4,column=0,sticky='w',pady=6)
         options=ttk.Frame(box);options.grid(row=5,column=0,sticky='w',pady=6)
@@ -226,40 +228,149 @@ class App:
         self.target_pin.set(target.get('pin',True))
         if not self.save():raise ValueError('未能保存目标配置')
 
+    def open_catalog_entry(self,entry):
+        target=self.catalog.web_target(entry)
+        self.mode.set('study');self.refresh_mode_visibility();self.store_target(target)
+        manager=self.registry.get(target)
+        threading.Thread(target=lambda:manager.ensure(manual=True),daemon=True).start()
+
     def add_web(self):
-        dialog=tk.Toplevel(self.root);dialog.title('添加学习网页');dialog.geometry('740x260');dialog.transient(self.root)
-        name=tk.StringVar(value='不背单词官方网页工具');url=tk.StringVar(value='https://bbdc.cn/lexis/login')
-        ttk.Label(dialog,text='网页名称').pack(anchor='w',padx=12,pady=5);ttk.Entry(dialog,textvariable=name,width=70).pack(padx=12)
-        ttk.Label(dialog,text='HTTPS 官方网页地址').pack(anchor='w',padx=12,pady=5);ttk.Entry(dialog,textvariable=url,width=70).pack(padx=12)
-        ttk.Label(dialog,text='不背单词此入口用于生词 / 自制词书；不保证手机端全部功能。百词斩未核实到官方 Windows 客户端或完整学习网页版，不预置虚构入口。',wraplength=700).pack(padx=12,pady=8)
+        dialog=tk.Toplevel(self.root);dialog.title('按名称搜索官方学习入口');dialog.geometry('860x510');dialog.transient(self.root)
+        query=tk.StringVar()
+        line=ttk.Frame(dialog);line.pack(fill='x',padx=12,pady=10)
+        ttk.Label(line,text='软件官方名称 / 别名：').pack(side='left')
+        entry=ttk.Entry(line,textvariable=query,width=38);entry.pack(side='left',padx=8);entry.focus_set()
+        message=tk.StringVar(value=f'已收录 {len(self.catalog.entries)} 个入口；输入名称后回车即可打开。')
+        ttk.Label(dialog,textvariable=message,wraplength=820).pack(anchor='w',padx=12,pady=5)
+        listing=ttk.Treeview(dialog,columns=('name','support','type'),show='headings',height=10)
+        for key,title,width in [('name','学习软件',240),('support','电脑端支持',180),('type','类别',180)]:
+            listing.heading(key,text=title);listing.column(key,width=width)
+        listing.pack(fill='both',expand=True,padx=12)
+        results=[]
+        detail=tk.StringVar();ttk.Label(dialog,textvariable=detail,wraplength=820).pack(anchor='w',padx=12,pady=8)
+        def refresh(*args):
+            results[:]=self.catalog.search(query.get());listing.delete(*listing.get_children())
+            for index,item in enumerate(results):
+                listing.insert('', 'end',iid=str(index),values=(item['name'],'已核实 Windows 客户端' if item.get('windows') is True else '网页 / 未核实电脑客户端',item['category']))
+        def selected():
+            choice=listing.selection()
+            return results[int(choice[0])] if choice else None
+        def details(*args):
+            item=selected()
+            if item:detail.set(item['note']+'\n'+(item.get('study_url') or item['official_url']))
+        def open_result(*args):
+            item=self.catalog.resolve(query.get()) or selected()
+            if item:
+                try:self.open_catalog_entry(item);dialog.destroy()
+                except (ValueError,OSError) as exc:messagebox.showerror('未能设置官网',str(exc),parent=dialog)
+            elif results:
+                message.set('有多个或相近的名称，请双击要使用的项目；不会自动选搜索首条广告。')
+            else:
+                self.search_unknown_official(query.get(),dialog)
+        query.trace_add('write',refresh);listing.bind('<<TreeviewSelect>>',details)
+        listing.bind('<Double-1>',open_result);entry.bind('<Return>',open_result)
+        ttk.Button(line,text='搜索并打开官网',command=open_result).pack(side='left')
+        ttk.Button(dialog,text='补充未收录官网（仅首次需确认网址）',command=lambda:self.add_web_address(query.get())).pack(anchor='e',padx=12,pady=8)
+        refresh()
+
+    def search_unknown_official(self,name,parent=None):
+        try:self.catalog.search_target(name)
+        except ValueError as exc:messagebox.showerror('名称无效',str(exc),parent=parent or self.root);return
+        dialog=tk.Toplevel(parent or self.root);dialog.title('待核实官网候选：'+name);dialog.geometry('850x410');dialog.transient(self.root)
+        state=tk.StringVar(value='正在按软件名称联网搜索；候选结果未认证为官网，请核对名称与域名。')
+        ttk.Label(dialog,textvariable=state,wraplength=810).pack(anchor='w',padx=12,pady=10)
+        listing=ttk.Treeview(dialog,columns=('title','domain'),show='headings',height=9)
+        listing.heading('title',text='待核实搜索结果');listing.column('title',width=550)
+        listing.heading('domain',text='域名');listing.column('domain',width=250);listing.pack(fill='both',expand=True,padx=12)
+        pending=queue.Queue();items=[]
+        def search():
+            try:pending.put(online_candidates(name))
+            except Exception:pending.put([])
+        threading.Thread(target=search,daemon=True).start()
+        def browser_search():
+            manager=self.registry.get(self.catalog.search_target(name))
+            threading.Thread(target=lambda:manager.ensure(manual=True),daemon=True).start()
+        def collect():
+            if not dialog.winfo_exists():return
+            try:items[:]=pending.get_nowait()
+            except queue.Empty:dialog.after(100,collect);return
+            for index,item in enumerate(items):listing.insert('', 'end',iid=str(index),values=(item['title'],item['domain']))
+            if not items:state.set('搜索未返回可核对的候选或网络不可用，已打开搜索页；可稍后重试或补充官网。');browser_search()
+            else:state.set('选中并确认一个官网即可保存并打开，无需复制网址；这些候选尚未核实为官方。')
+        def confirm():
+            selection=listing.selection()
+            if not selection:return
+            try:
+                entry=self.catalog.remember(name,items[int(selection[0])]['url']);self.open_catalog_entry(entry);dialog.destroy()
+            except (ValueError,OSError) as exc:messagebox.showerror('未能保存官网',str(exc),parent=dialog)
+        buttons=ttk.Frame(dialog);buttons.pack(anchor='e',padx=12,pady=8)
+        ttk.Button(buttons,text='在浏览器查看搜索',command=browser_search).pack(side='left',padx=5)
+        ttk.Button(buttons,text='确认选中官网并打开',command=confirm).pack(side='left',padx=5)
+        dialog.after(100,collect)
+
+    def add_web_address(self,preset_name=''):
+        dialog=tk.Toplevel(self.root);dialog.title('补充用户确认的官网');dialog.geometry('740x240');dialog.transient(self.root)
+        name=tk.StringVar(value=preset_name);url=tk.StringVar()
+        ttk.Label(dialog,text='官方名称').pack(anchor='w',padx=12,pady=5);ttk.Entry(dialog,textvariable=name,width=70).pack(padx=12)
+        ttk.Label(dialog,text='已确认的 HTTPS 官网地址（保存后下次按名称搜索）').pack(anchor='w',padx=12,pady=5);ttk.Entry(dialog,textvariable=url,width=70).pack(padx=12)
         def apply():
             try:
-                self.store_target(dict(id='web-'+uuid.uuid4().hex[:10],name=name.get().strip(),adapter='web',url=url.get().strip(),pin=True));dialog.destroy()
-            except (ValueError,OSError) as exc:messagebox.showerror('网页配置无效',str(exc),parent=dialog)
-        ttk.Button(dialog,text='保存并选择',command=apply).pack(anchor='e',padx=12)
+                item=self.catalog.remember(name.get().strip(),url.get().strip());self.open_catalog_entry(item);dialog.destroy()
+            except (ValueError,OSError) as exc:messagebox.showerror('官网配置无效',str(exc),parent=dialog)
+        ttk.Button(dialog,text='保存并打开',command=apply).pack(anchor='e',padx=12,pady=10)
 
     def discover_apps(self):
-        dialog=tk.Toplevel(self.root);dialog.title('自动发现已安装桌面软件');dialog.geometry('760x450');dialog.transient(self.root)
-        label=ttk.Label(dialog,text='正在读取安装登记和开始菜单快捷方式…');label.pack(anchor='w',padx=10,pady=8)
-        choices=tk.Listbox(dialog);choices.pack(fill='both',expand=True,padx=10)
-        results=[];pending=queue.Queue()
+        dialog=tk.Toplevel(self.root);dialog.title('检测电脑上的学习软件');dialog.geometry('1000x570');dialog.transient(self.root)
+        label=ttk.Label(dialog,text='正在按软件库匹配安装登记、开始菜单、运行进程和 Anki 常见目录…');label.pack(anchor='w',padx=12,pady=8)
+        line=ttk.Frame(dialog);line.pack(fill='x',padx=12)
+        ttk.Label(line,text='按名称过滤：').pack(side='left');query=tk.StringVar();ttk.Entry(line,textvariable=query,width=30).pack(side='left',padx=8)
+        show_missing=tk.BooleanVar(value=False)
+        table=ttk.Treeview(dialog,columns=('name','state','path'),show='headings',height=14)
+        for key,title,width in [('name','学习软件',200),('state','检测依据',170),('path','实际程序位置',570)]:table.heading(key,text=title);table.column(key,width=width)
+        table.pack(fill='both',expand=True,padx=12,pady=8)
+        detected=[];visible=[];pending=queue.Queue()
+        def refresh(*args):
+            ids={e['id'] for e in self.catalog.search(query.get(),windows_only=True)}
+            items=[i for i in detected if i['catalog_id'] in ids or
+                   (i['catalog_id'].startswith('configured:') and query.get().casefold() in i['name'].casefold())]
+            if show_missing.get():
+                have={i['catalog_id'] for i in detected}
+                items += [dict(name=e['name'],catalog_id=e['id'],source='未检测到',path='') for e in self.catalog.search(query.get(),windows_only=True) if e['id'] not in have]
+            visible[:]=items;table.delete(*table.get_children())
+            for index,item in enumerate(items):table.insert('', 'end',iid=str(index),values=(item['name'],item['source'],item['path']))
+        query.trace_add('write',refresh)
+        ttk.Checkbutton(line,text='同时查看库中未检测到的软件',variable=show_missing,command=refresh).pack(side='left')
         def scan():
-            try:pending.put(installed_desktop_apps())
-            except Exception:pending.put([])
+            try:pending.put((scan_learning_apps(self.catalog,self.windows,ROOT,configured_targets=self.config['targets']),''))
+            except Exception as exc:pending.put(([],type(exc).__name__))
         threading.Thread(target=scan,daemon=True).start()
         def collect():
             if not dialog.winfo_exists():return
-            try:items=pending.get_nowait()
+            try:items,error=pending.get_nowait()
             except queue.Empty:dialog.after(100,collect);return
-            results.extend(items)
-            for item in items:choices.insert('end',item['name'])
-            label.configure(text=f'发现 {len(items)} 项。选择你已安装的学习软件；也可关闭后使用文件选择器。')
-        dialog.after(100,collect)
+            detected[:]=items;refresh()
+            count=sum(e.get('windows') is True for e in self.catalog.entries)
+            label.configure(text=f'已识别 {len(items)} 个本机学习程序；目录包含 {count} 类 Windows 学习软件。'+('扫描未完成：'+error if error else ' 未安装不等于不支持；仅显示实际找到的路径。'))
+        def choice():
+            selection=table.selection();return visible[int(selection[0])] if selection else None
         def choose():
-            if not choices.curselection():return
-            item=results[choices.curselection()[0]];dialog.destroy()
-            self.add_desktop(dict(name=item['name'],command=[item['path']],process_path=item['path']))
-        ttk.Button(dialog,text='配置选中软件',command=choose).pack(pady=8)
+            item=choice()
+            if not item:return
+            if not item['path']:messagebox.showinfo('未检测到本机安装','可查看官网或通过文件选择器添加；不会自动安装。',parent=dialog);return
+            try:
+                target=detected_target(item,self.config['targets']);self.mode.set('study');self.refresh_mode_visibility();self.store_target(target);dialog.destroy()
+            except (ValueError,OSError) as exc:messagebox.showerror('未能设置目标',str(exc),parent=dialog)
+        def open_site():
+            item=choice()
+            if item:
+                known=next((e for e in self.catalog.entries if e['id']==item['catalog_id']),None)
+                if not known:messagebox.showinfo('未收录官网','这是你已有的自选目标，可通过名称搜索补充官方入口。',parent=dialog);return
+                self.open_catalog_entry(known);dialog.destroy()
+        buttons=ttk.Frame(dialog);buttons.pack(anchor='e',padx=12,pady=8)
+        ttk.Button(buttons,text='查看所选官网',command=open_site).pack(side='left',padx=5)
+        ttk.Button(buttons,text='选择使用（首次需要时启动）',command=choose).pack(side='left',padx=5)
+        ttk.Button(buttons,text='手动选择其他程序',command=self.add_desktop).pack(side='left',padx=5)
+        table.bind('<Double-1>',lambda _:choose());dialog.after(100,collect)
 
     def log_return_result(self,presentation,result):
         if result in {'returned','failed','cancelled'}:

@@ -241,12 +241,11 @@ class LedgerTests(TempCase):
     def observe(self,count,now=100,player='本人#123',process='game:1'):
         self.ledger.observe(player,now,process,count,1000+now)
 
-    def test_twenty_is_not_enough_and_twenty_one_triggers(self):
-        self.observe(19);self.assertFalse(self.ledger.eligible('entertainment',True))
-        self.observe(20,101);self.assertFalse(self.ledger.eligible('entertainment',True))
-        self.assertFalse(self.ledger.claim())
-        self.observe(21,102);self.assertTrue(self.ledger.eligible('entertainment',True))
+    def test_twentieth_death_triggers_once_in_current_match(self):
+        self.observe(19);self.assertFalse(self.ledger.eligible('entertainment',True));self.assertFalse(self.ledger.claim())
+        self.observe(20,101);self.assertTrue(self.ledger.eligible('entertainment',True))
         self.assertTrue(self.ledger.claim());self.assertFalse(self.ledger.claim())
+        self.observe(21,102);self.assertFalse(self.ledger.eligible('entertainment',True))
 
     def test_count_jump_over_threshold_triggers(self):
         self.observe(19);self.observe(23,110)
@@ -368,14 +367,14 @@ class ModeTests(TempCase):
         self.capture=Mock(backend='模拟',detail='')
         self.step(0,dead=False,count=19)
 
-    def step(self,now,dead=True,count=21,gray=False,timer=30):
+    def step(self,now,dead=True,count=20,gray=False,timer=30):
         self.capture.read.return_value=bytes([100,100,100,0] if gray else [40,150,210,0])*100
         self.runtime.step('本人#123',Snapshot(dead,timer,'Karthus',count),now,100+now,'game:1',1100+now,self.capture)
 
-    def study(self,count=21):
+    def study(self,count=20):
         self.step(1,count=count,gray=True);self.step(2,count=count,gray=True);self.step(4,count=count,gray=True)
 
-    def test_twenty_first_death_still_waits_delay_and_operable_phase(self):
+    def test_twentieth_death_still_waits_delay_and_operable_phase(self):
         for now in range(1,12):self.step(now,gray=False)
         self.assertFalse(self.ledger.current['claimed']);self.assertEqual(self.registry.starts,[])
         self.step(12,gray=True);self.step(12.2,gray=True)
@@ -383,11 +382,12 @@ class ModeTests(TempCase):
         self.download.start.assert_called_once()
         self.assertEqual(self.runtime.manager.adapter.spec['url'],GENSHIN_HOME)
 
-    def test_twenty_deaths_only_shows_normal_entertainment(self):
+    def test_twentieth_death_only_triggers_one_easter_egg(self):
         self.study(count=20)
-        self.assertEqual(self.registry.starts,['entertainment-bilibili'])
-        self.assertFalse(self.ledger.current['claimed'])
-        self.download.start.assert_not_called()
+        self.assertEqual(self.registry.starts,['genshin-penalty'])
+        self.assertTrue(self.ledger.current['claimed'])
+        for now in range(5,10):self.step(now,count=20,gray=True)
+        self.download.start.assert_called_once()
 
     def test_easter_egg_reopens_previously_closed_official_window_once(self):
         manager=self.registry.get(dict(id='genshin-penalty',name='原神官网',adapter='web',url=GENSHIN_HOME,pin=True))

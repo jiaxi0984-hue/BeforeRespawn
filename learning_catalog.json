@@ -1,0 +1,302 @@
+{
+  "schema_version": 1,
+  "updated_on": "2026-10-18",
+  "entries": [
+    {
+      "id": "anki",
+      "name": "Anki",
+      "aliases": [
+        "anki",
+        "安基"
+      ],
+      "official_url": "https://apps.ankiweb.net/",
+      "study_url": "https://ankiweb.net/",
+      "windows": true,
+      "category": "背词与词典",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://apps.ankiweb.net/"
+      ],
+      "note": "桌面闪卡；AnkiWeb 需自行登录。"
+    },
+    {
+      "id": "youdao",
+      "name": "有道词典",
+      "aliases": [
+        "网易有道词典",
+        "有道",
+        "YoudaoDict",
+        "网易有道翻译",
+        "有道翻译",
+        "Youdao"
+      ],
+      "official_url": "https://fanyi.youdao.com/download/",
+      "study_url": "https://dict.youdao.com/",
+      "windows": true,
+      "category": "背词与词典",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://cidian.youdao.com/",
+        "https://dict.youdao.com/"
+      ],
+      "note": "Windows 端现以有道翻译桌面端提供，含词典相关功能。"
+    },
+    {
+      "id": "eudic",
+      "name": "欧路词典",
+      "aliases": [
+        "欧路",
+        "Eudic",
+        "欧路英语"
+      ],
+      "official_url": "https://www.eudic.net/v4/en/app/eudic",
+      "study_url": "",
+      "windows": true,
+      "category": "背词与词典",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://www.eudic.net/v4/en/app/eudic"
+      ],
+      "note": "支持 Windows；此入口为产品页。"
+    },
+    {
+      "id": "iciba",
+      "name": "金山词霸",
+      "aliases": [
+        "词霸",
+        "爱词霸",
+        "iciba",
+        "Kingsoft PowerWord",
+        "PowerWord"
+      ],
+      "official_url": "https://www.iciba.com/",
+      "study_url": "https://www.iciba.com/",
+      "windows": true,
+      "category": "背词与词典",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://www.iciba.com/"
+      ],
+      "note": "官网提供在线词典与翻译，亦提供 Windows 下载。"
+    },
+    {
+      "id": "ting",
+      "name": "每日英语听力",
+      "aliases": [
+        "欧路听力",
+        "每日听力",
+        "每日英语"
+      ],
+      "official_url": "https://www.eudic.net/v4/en/app/ting",
+      "study_url": "",
+      "windows": true,
+      "category": "听力",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://www.eudic.net/v4/en/app/ting"
+      ],
+      "note": "官网明确提供 Windows 客户端；此入口为产品页。"
+    },
+    {
+      "id": "readest",
+      "name": "Readest",
+      "aliases": [
+        "readest阅读器"
+      ],
+      "official_url": "https://readest.com/",
+      "study_url": "https://web.readest.com/",
+      "windows": true,
+      "category": "阅读",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://readest.com/"
+      ],
+      "note": "官网提供 Windows 和网页阅读器。"
+    },
+    {
+      "id": "zotero",
+      "name": "Zotero",
+      "aliases": [
+        "文献管理zotero"
+      ],
+      "official_url": "https://www.zotero.org/download/",
+      "study_url": "",
+      "windows": true,
+      "category": "阅读与文献",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://www.zotero.org/download/"
+      ],
+      "note": "文献阅读管理工具；官网入口不是背词界面。"
+    },
+    {
+      "id": "calibre",
+      "name": "calibre",
+      "aliases": [
+        "calibre电子书"
+      ],
+      "official_url": "https://calibre-ebook.com/download_windows",
+      "study_url": "",
+      "windows": true,
+      "category": "阅读",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://calibre-ebook.com/download_windows"
+      ],
+      "note": "Windows 电子书管理阅读；此入口为下载说明，不自动下载。"
+    },
+    {
+      "id": "obsidian",
+      "name": "Obsidian",
+      "aliases": [
+        "黑曜石",
+        "obsidian笔记"
+      ],
+      "official_url": "https://obsidian.md/download",
+      "study_url": "",
+      "windows": true,
+      "category": "学习笔记",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://obsidian.md/download"
+      ],
+      "note": "Windows 笔记工具；此入口为产品下载页。"
+    },
+    {
+      "id": "goldendict-ng",
+      "name": "GoldenDict-ng",
+      "aliases": [
+        "GoldenDictNG",
+        "goldendict ng"
+      ],
+      "official_url": "https://github.com/xiaoyifang/goldendict-ng",
+      "study_url": "",
+      "windows": true,
+      "category": "背词与词典",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://github.com/xiaoyifang/goldendict-ng"
+      ],
+      "note": "项目官方支持 Windows，词库需用户自己配置。"
+    },
+    {
+      "id": "mnemosyne",
+      "name": "Mnemosyne",
+      "aliases": [
+        "Mnemosyne Project"
+      ],
+      "official_url": "https://mnemosyne-proj.org/download-mnemosyne.php",
+      "study_url": "",
+      "windows": true,
+      "category": "背词与词典",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://mnemosyne-proj.org/download-mnemosyne.php"
+      ],
+      "note": "官方提供 Windows 闪卡程序。"
+    },
+    {
+      "id": "bbdc",
+      "name": "不背单词",
+      "aliases": [
+        "不背",
+        "bbdc"
+      ],
+      "official_url": "https://bbdc.cn/lexis/login",
+      "study_url": "https://bbdc.cn/lexis/login",
+      "windows": null,
+      "category": "背词与词典",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://bbdc.cn/lexis/login"
+      ],
+      "note": "官方生词/自制词书工具；未核实 Windows 客户端，不保证完整手机端背词功能。"
+    },
+    {
+      "id": "baicizhan",
+      "name": "百词斩",
+      "aliases": [
+        "bcz",
+        "baicizhan"
+      ],
+      "official_url": "https://www.baicizhan.com/",
+      "study_url": "",
+      "windows": null,
+      "category": "背词与词典",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://www.baicizhan.com/"
+      ],
+      "note": "官网介绍与移动端下载；未核实 Windows 客户端或完整背词网页版。"
+    },
+    {
+      "id": "maimemo",
+      "name": "墨墨背单词",
+      "aliases": [
+        "墨墨",
+        "maimemo"
+      ],
+      "official_url": "https://www.maimemo.com/",
+      "study_url": "",
+      "windows": null,
+      "category": "背词与词典",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://www.maimemo.com/",
+        "https://memodocs.maimemo.com/docs/memo-web_study"
+      ],
+      "note": "官方已确认网页公测，需资格和同步设置；未核实统一登录地址，先打开官网。"
+    },
+    {
+      "id": "shanbay",
+      "name": "扇贝单词",
+      "aliases": [
+        "扇贝",
+        "shanbay"
+      ],
+      "official_url": "https://www.shanbay.com/",
+      "study_url": "https://web.shanbay.com/wordsweb/",
+      "windows": null,
+      "category": "背词与词典",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://web.shanbay.com/wordsweb/",
+        "https://web.shanbay.com/company/jieshao"
+      ],
+      "note": "官方网页入口，实际可用范围以账户和网站为准。"
+    },
+    {
+      "id": "memrise",
+      "name": "Memrise",
+      "aliases": [
+        "忆术家"
+      ],
+      "official_url": "https://www.memrise.com/",
+      "study_url": "https://www.memrise.com/",
+      "windows": null,
+      "category": "语言学习",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://www.memrise.com/"
+      ],
+      "note": "官网在线语言学习；不预置 Windows 客户端。"
+    },
+    {
+      "id": "duolingo",
+      "name": "多邻国",
+      "aliases": [
+        "多邻",
+        "duolingo"
+      ],
+      "official_url": "https://www.duolingo.com/",
+      "study_url": "https://www.duolingo.com/",
+      "windows": null,
+      "category": "语言学习",
+      "checked_on": "2026-10-18",
+      "sources": [
+        "https://www.duolingo.com/"
+      ],
+      "note": "官方网页；不预置未经核实的独立 Windows 客户端。"
+    }
+  ]
+}
