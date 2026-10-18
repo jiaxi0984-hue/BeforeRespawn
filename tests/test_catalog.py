@@ -243,10 +243,10 @@ class TwentiethDeathResetTests(CatalogCase):
     def test_new_match_can_trigger_again_at_exactly_twenty(self):
         ledger=DeathLedger(self.root/'penalty.json')
         ledger.observe('本人',100,'pid:1',20,1000)
-        self.assertTrue(ledger.eligible('entertainment',True));self.assertTrue(ledger.claim());self.assertFalse(ledger.claim())
+        self.assertTrue(ledger.eligible('entertainment'));self.assertTrue(ledger.claim());self.assertFalse(ledger.claim())
         first=ledger.current['id'];ledger.end()
         ledger.observe('本人',1,'pid:2',0,1100)
         self.assertEqual(ledger.current['deaths'],0);self.assertFalse(ledger.current['claimed'])
         ledger.observe('本人',100,'pid:2',20,1199)
-        self.assertTrue(ledger.eligible('entertainment',True));self.assertTrue(ledger.claim())
+        self.assertTrue(ledger.eligible('entertainment'));self.assertTrue(ledger.claim())
         self.assertNotEqual(ledger.current['id'],first)

@@ -257,7 +257,6 @@ class SettingsTests(unittest.TestCase):
         app.target_choice = Mock(get=lambda:'Anki')
         app.target_pin = Mock(get=lambda:True)
         app.site = Mock(get=lambda:'哔哩哔哩')
-        app.penalty_enabled = Mock(get=lambda:False)
         app.lead = Mock(get=lambda: '1')
         app.threshold = Mock(get=lambda: '82')
         app.switch_delay = Mock(get=lambda: '5')

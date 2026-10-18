@@ -39,11 +39,16 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(new['targets'][0]['command'],['E:/Anki/anki.exe'])
         self.assertFalse(new['targets'][0]['pin'])
         self.assertEqual(new['mode'],'study')
-        self.assertFalse(new['death_penalty_enabled'])
+        self.assertNotIn('death_penalty_enabled',new)
 
     def test_migration_is_idempotent(self):
         config=migrate_config({'death_switch_delay':5})
         self.assertEqual(migrate_config(config),config)
+
+    def test_removed_switch_is_ignored_in_old_configs(self):
+        for value in [False,True,'old-value']:
+            config=migrate_config({'death_penalty_enabled':value})
+            self.assertNotIn('death_penalty_enabled',config)
 
     def test_custom_executable_and_window_conditions_are_configurable(self):
         config=migrate_config();config['targets'].append(desktop_spec());config['study_target']='custom'
@@ -242,14 +247,14 @@ class LedgerTests(TempCase):
         self.ledger.observe(player,now,process,count,1000+now)
 
     def test_twentieth_death_triggers_once_in_current_match(self):
-        self.observe(19);self.assertFalse(self.ledger.eligible('entertainment',True));self.assertFalse(self.ledger.claim())
-        self.observe(20,101);self.assertTrue(self.ledger.eligible('entertainment',True))
+        self.observe(19);self.assertFalse(self.ledger.eligible('entertainment'));self.assertFalse(self.ledger.claim())
+        self.observe(20,101);self.assertTrue(self.ledger.eligible('entertainment'))
         self.assertTrue(self.ledger.claim());self.assertFalse(self.ledger.claim())
-        self.observe(21,102);self.assertFalse(self.ledger.eligible('entertainment',True))
+        self.observe(21,102);self.assertFalse(self.ledger.eligible('entertainment'))
 
     def test_count_jump_over_threshold_triggers(self):
         self.observe(19);self.observe(23,110)
-        self.assertTrue(self.ledger.eligible('entertainment',True))
+        self.assertTrue(self.ledger.eligible('entertainment'))
 
     def test_repeated_polls_never_increment_counter(self):
         for now in range(100,120):self.observe(19,now)
@@ -259,13 +264,13 @@ class LedgerTests(TempCase):
     def test_reconnect_with_lower_score_never_rearms(self):
         self.observe(21);self.ledger.claim();self.observe(19,101);self.observe(21,102)
         self.assertEqual(self.ledger.current['deaths'],21)
-        self.assertFalse(self.ledger.eligible('entertainment',True))
+        self.assertFalse(self.ledger.eligible('entertainment'))
 
     def test_same_match_tool_restart_preserves_claim(self):
         self.observe(21);self.ledger.claim()
         other=DeathLedger(self.path);other.observe('本人#123',120,'game:1',21,1120)
         self.assertTrue(other.current['claimed'])
-        self.assertFalse(other.eligible('entertainment',True))
+        self.assertFalse(other.eligible('entertainment'))
 
     def test_next_match_resets_count_and_trigger(self):
         self.observe(21);self.ledger.claim();self.ledger.end()
@@ -283,15 +288,14 @@ class LedgerTests(TempCase):
         self.observe(21);self.ledger.claim();self.observe(0,101,player='另一人#456')
         self.assertEqual(self.ledger.current['deaths'],0)
 
-    def test_learning_mode_and_disabled_penalty_never_trigger(self):
+    def test_learning_mode_never_triggers(self):
         self.observe(30)
-        self.assertFalse(self.ledger.eligible('study',True))
-        self.assertFalse(self.ledger.eligible('entertainment',False))
+        self.assertFalse(self.ledger.eligible('study'))
 
     def test_unreliable_missing_count_is_not_guessed(self):
         for value in [None,True,'21',-1]:
             self.observe(value)
-            self.assertFalse(self.ledger.eligible('entertainment',True))
+            self.assertFalse(self.ledger.eligible('entertainment'))
 
     def test_persisted_record_contains_no_plain_player_identity(self):
         self.observe(21)
@@ -359,7 +363,7 @@ class SimRegistry:
 class ModeTests(TempCase):
     def setUp(self):
         super().setUp();self.w=SimWindows();self.registry=SimRegistry(self.w)
-        self.config=migrate_config();self.config.update(mode='entertainment',death_penalty_enabled=True)
+        self.config=migrate_config();self.config.update(mode='entertainment')
         self.ledger=DeathLedger(self.root/'ledger.json')
         self.logs=[];self.results=[]
         self.runtime=ModeRuntime(self.w,self.root,self.config,self.ledger,self.logs.append,lambda p,r:self.results.append(r),self.registry)
@@ -432,10 +436,12 @@ class ModeTests(TempCase):
         self.assertFalse(self.ledger.current['claimed'])
         self.download.start.assert_not_called()
 
-    def test_disabled_switch_never_triggers_penalty(self):
-        self.config['death_penalty_enabled']=False;self.runtime.switch(self.config);self.step(.5,dead=False)
+    def test_legacy_false_switch_does_not_disable_entertainment_event(self):
+        self.config=migrate_config({**self.config,'death_penalty_enabled':False})
+        self.assertNotIn('death_penalty_enabled',self.config)
+        self.runtime.switch(self.config);self.step(.5,dead=False)
         self.study()
-        self.assertEqual(self.registry.starts,['entertainment-bilibili'])
+        self.assertEqual(self.registry.starts,['genshin-penalty'])
 
     def test_mode_switch_cleans_pin_and_cancels_downloader(self):
         self.study();self.assertTrue(self.w.is_topmost(6))
@@ -472,7 +478,7 @@ class ModeTests(TempCase):
         self.assertFalse(self.runtime.presentation.returning)
 
     def test_close_entertainment_page_does_not_loop_start(self):
-        self.config['death_penalty_enabled']=False;self.runtime.switch(self.config);self.step(.5,dead=False)
+        self.runtime.switch(self.config);self.step(.5,dead=False,count=19)
         self.study(count=19);self.w.rows.pop(5);self.step(5,dead=False,count=19)
         self.step(6,count=19,gray=True);self.step(7,count=19,gray=True);self.step(9,count=19,gray=True)
         self.assertEqual(self.registry.starts,['entertainment-bilibili'])
@@ -492,7 +498,7 @@ class ModeTests(TempCase):
         self.assertFalse(self.runtime.presentation.owned)
 
     def test_pause_resume_registry_does_not_reset_launch_budget(self):
-        self.config['death_penalty_enabled']=False;self.runtime.switch(self.config);self.step(.5,dead=False)
+        self.runtime.switch(self.config);self.step(.5,dead=False,count=19)
         self.study(count=19);self.runtime.cleanup();self.w.rows.pop(5)
         resumed=ModeRuntime(self.w,self.root,self.config,self.ledger,self.logs.append,registry=self.registry)
         for now,dead in [(5,False),(6,True),(7,True),(9,True)]:
@@ -511,26 +517,44 @@ class DownloadTests(TempCase):
 
     def test_simulated_official_entry_is_clicked_only_once(self):
         adapter=Mock();adapter.evaluate.side_effect=[{'state':'ready','id':'mock-download'},'submitted']
-        download=OfficialDownload(Mock());download.start(adapter,self.ledger);download.thread.join(3)
+        download=OfficialDownload(Mock(),approve=lambda cancelled:True);download.start(adapter,self.ledger);download.thread.join(3)
         download.start(adapter,self.ledger)
         self.assertEqual(adapter.evaluate.call_count,2)
         self.assertIn('启动器',self.ledger.current['status'])
         self.assertIn('未验证完成',self.ledger.current['status'])
         adapter.navigate_home.assert_called_once()
 
+    def test_missing_approval_handler_never_downloads_silently(self):
+        adapter=Mock();download=OfficialDownload(Mock())
+        download.start(adapter,self.ledger);download.thread.join(3)
+        adapter.evaluate.assert_not_called();adapter.request_download.assert_not_called()
+        self.assertIn('未确认下载',self.ledger.current['status'])
+
+    def test_declined_download_is_not_requested_again_this_match(self):
+        adapter=Mock();approval=Mock(return_value=False);download=OfficialDownload(Mock(),approve=approval)
+        download.start(adapter,self.ledger);download.thread.join(3);download.start(adapter,self.ledger)
+        approval.assert_called_once();adapter.evaluate.assert_not_called();adapter.request_download.assert_not_called()
+        self.assertTrue(self.ledger.current['claimed'])
+
+    def test_revive_during_approval_cancels_even_if_user_had_clicked_yes(self):
+        adapter=Mock()
+        def approve(cancelled):cancelled.set();return True
+        download=OfficialDownload(Mock(),approve=approve);download.start(adapter,self.ledger);download.thread.join(3)
+        adapter.evaluate.assert_not_called();adapter.request_download.assert_not_called()
+
     def test_cancelled_before_action_never_clicks(self):
-        adapter=Mock();download=OfficialDownload(Mock());download.cancel();download.start(adapter,self.ledger);download.thread.join(3)
+        adapter=Mock();download=OfficialDownload(Mock(),approve=lambda cancelled:True);download.cancel();download.start(adapter,self.ledger);download.thread.join(3)
         adapter.evaluate.assert_not_called()
 
     def test_site_verification_or_wrong_origin_does_not_loop_click(self):
         adapter=Mock();adapter.evaluate.return_value={'state':'wrong_site'}
-        download=OfficialDownload(Mock());download.start(adapter,self.ledger);download.thread.join(3)
+        download=OfficialDownload(Mock(),approve=lambda cancelled:True);download.start(adapter,self.ledger);download.thread.join(3)
         adapter.evaluate.assert_called_once_with(INSPECT_PC)
         self.assertIn('官网保留',self.ledger.current['status'])
 
     def test_unavailable_entry_performs_only_bounded_read_checks(self):
         adapter=Mock();adapter.evaluate.return_value={'state':'waiting'}
-        download=OfficialDownload(Mock())
+        download=OfficialDownload(Mock(),approve=lambda cancelled:True)
         with patch.object(download.cancelled,'wait',return_value=False):
             download.start(adapter,self.ledger);download.thread.join(3)
         self.assertEqual(adapter.evaluate.call_count,60)
@@ -538,7 +562,7 @@ class DownloadTests(TempCase):
 
     def test_entry_click_failure_is_recorded_without_retries(self):
         adapter=Mock();adapter.evaluate.side_effect=[{'state':'ready','id':'mock'},'entry_unavailable']
-        download=OfficialDownload(Mock());download.start(adapter,self.ledger);download.thread.join(3)
+        download=OfficialDownload(Mock(),approve=lambda cancelled:True);download.start(adapter,self.ledger);download.thread.join(3)
         self.assertEqual(adapter.evaluate.call_count,2)
         self.assertIn('不自动重试',self.ledger.current['status'])
 
@@ -546,7 +570,7 @@ class DownloadTests(TempCase):
         from official_download import OFFICIAL_PC_ENTRY
         self.fallback_mock.return_value=OFFICIAL_PC_ENTRY
         adapter=Mock();adapter.evaluate.return_value={'state':'waiting'}
-        download=OfficialDownload(Mock())
+        download=OfficialDownload(Mock(),approve=lambda cancelled:True)
         with patch.object(download.cancelled,'wait',return_value=False):
             download.start(adapter,self.ledger);download.thread.join(3)
         adapter.request_download.assert_called_once_with(OFFICIAL_PC_ENTRY)
@@ -555,7 +579,7 @@ class DownloadTests(TempCase):
 
     def test_website_verification_does_not_use_download_fallback(self):
         adapter=Mock();adapter.evaluate.return_value={'state':'blocked'}
-        download=OfficialDownload(Mock());download.start(adapter,self.ledger);download.thread.join(3)
+        download=OfficialDownload(Mock(),approve=lambda cancelled:True);download.start(adapter,self.ledger);download.thread.join(3)
         self.fallback_mock.assert_not_called()
         adapter.request_download.assert_not_called()
 

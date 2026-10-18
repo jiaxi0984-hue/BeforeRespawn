@@ -56,9 +56,9 @@ class DeathLedger:
                 self.failed = True
                 self.report('惩罚记录无法可靠保存或已损坏，本次运行禁用自动惩罚，避免重复下载')
 
-    def eligible(self, mode, enabled):
+    def eligible(self, mode):
         return bool(not self.failed and self.available and self.current and mode == 'entertainment'
-                    and enabled and self.current['deaths'] >= 20 and not self.current['claimed'])
+                    and self.current['deaths'] >= 20 and not self.current['claimed'])
 
     def claim(self):
         """在安全切出时先落盘，再产生外部动作；失败时宁可不下载。"""

@@ -41,7 +41,7 @@ class ModeRuntime:
             return False
         self.cleanup()
         self.config.update(mode=config['mode'], study_target=config['study_target'], targets=copy.deepcopy(config['targets']),
-                           entertainment_site=config['entertainment_site'], death_penalty_enabled=config['death_penalty_enabled'])
+                           entertainment_site=config['entertainment_site'])
         self.primary = self.manager = self.registry.get(selected_spec(self.config))
         self.context.adapter = self.manager.adapter
         self.flow = self.make_flow(self.config)
@@ -55,7 +55,7 @@ class ModeRuntime:
     def prepare_target(self, now):
         if self.stopped():
             return None
-        if self.ledger.eligible(self.config['mode'], self.config['death_penalty_enabled']):
+        if self.ledger.eligible(self.config['mode']):
             if self.ledger.claim():
                 self.penalty_death = self.current_death
                 spec = dict(id='genshin-penalty', name='原神官网（死亡惩罚）', adapter='web', url=GENSHIN_HOME, pin=True)

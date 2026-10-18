@@ -21,6 +21,7 @@ from mode_runtime import ModeRuntime
 from penalty import DeathLedger
 from software_catalog import scan_learning_apps, detected_target
 from catalog import LearningCatalog, online_candidates
+from official_download import OfficialDownload
 
 ROOT = Path(__file__).resolve().parent
 DEFAULTS = migrate_config()
@@ -61,7 +62,6 @@ class App:
         self.target_choice = tk.StringVar(value=selected_spec({**self.config, 'mode':'study'})['name'])
         self.target_pin = tk.BooleanVar(value=selected_spec({**self.config, 'mode':'study'}).get('pin',True))
         self.site = tk.StringVar(value=WEBSITES[self.config['entertainment_site']][0])
-        self.penalty_enabled = tk.BooleanVar(value=self.config['death_penalty_enabled'])
         self.penalty_status = tk.StringVar(value='本局死亡：未知 · 惩罚未触发')
         self.status = tk.StringVar(value='等待游戏 · 首次安全切出时启动目标')
         self.path_label = tk.StringVar(value='自动发现优先，也可通过文件选择添加；多个匹配窗口时不会随意选择')
@@ -97,9 +97,6 @@ class App:
         self.fun_box.grid(row=3,column=0,sticky='ew',pady=4)
         sites=ttk.Combobox(self.fun_box,textvariable=self.site,state='readonly',width=22,values=[v[0] for v in WEBSITES.values()]);sites.pack(anchor='w')
         sites.bind('<<ComboboxSelected>>',lambda _:self.save())
-        ttk.Checkbutton(self.fun_box,text='启用惩罚彩蛋（默认关闭）',variable=self.penalty_enabled,command=self.save).pack(anchor='w',pady=4)
-        ttk.Label(self.fun_box,text='单局死亡达到20次可触发一次惩罚彩蛋，下一局重新计数',wraplength=940).pack(anchor='w')
-        ttk.Label(self.fun_box,textvariable=self.penalty_status,foreground='#155e75',wraplength=940).pack(anchor='w',pady=4)
         ttk.Label(box,textvariable=self.path_label,wraplength=940,foreground='#155e75').grid(row=4,column=0,sticky='w',pady=6)
         options=ttk.Frame(box);options.grid(row=5,column=0,sticky='w',pady=6)
         for text,var,low,high in [('灰色占比至少（%）',self.threshold,50,99),('死亡后切出延迟（秒）',self.switch_delay,0,120),('复活前提前返回（秒）',self.lead,0,30)]:
@@ -111,7 +108,7 @@ class App:
         buttons=ttk.Frame(box);buttons.grid(row=8,column=0,sticky='w',pady=8)
         for label,command in [('暂停',self.stop),('恢复监测',self.start),('发现当前目标',self.rediscover),('手动重新打开目标',self.reopen_target),('保存设置',self.save)]:
             ttk.Button(buttons,text=label,command=command).pack(side='left',padx=(0,8))
-        ttk.Label(box,text='模式、目标、惩罚开关保存后立即切换并取消旧任务；公共计时与置顶参数暂停恢复后生效。\n网页使用独立 Edge/Chrome 窗口；不接入日常浏览器标签页。后台无灰屏证据时短暂恢复游戏采样。',wraplength=940).grid(row=9,column=0,sticky='w',pady=6)
+        ttk.Label(box,text='模式、目标保存后立即切换并取消旧任务；公共计时与置顶参数暂停恢复后生效。\n网页使用独立 Edge/Chrome 窗口；不接入日常浏览器标签页。后台无灰屏证据时短暂恢复游戏采样。',wraplength=940).grid(row=9,column=0,sticky='w',pady=6)
         ttk.Label(box,textvariable=self.status,wraplength=940,foreground='#155e75').grid(row=10,column=0,sticky='w',pady=6)
         self.log=tk.Text(box,state='disabled',height=9,wrap='word',background='#f1f5f9',font=('Microsoft YaHei UI',9));self.log.grid(row=11,column=0,sticky='nsew');box.rowconfigure(11,weight=1)
         self.refresh_mode_visibility()
@@ -158,7 +155,8 @@ class App:
             config.update(return_before_seconds=lead,gray_threshold=threshold,death_switch_delay=delay,
                 persistent_anki_topmost=self.persistent_pin.get(),persistent_target_topmost=self.persistent_pin.get(),game_display_mode=DISPLAY_MODES[self.display_mode.get()],
                 mode=self.mode.get(),study_target=next(t['id'] for t in config['targets'] if t['name']==self.target_choice.get()),
-                entertainment_site=next(k for k,v in WEBSITES.items() if v[0]==self.site.get()),death_penalty_enabled=self.penalty_enabled.get())
+                entertainment_site=next(k for k,v in WEBSITES.items() if v[0]==self.site.get()))
+            config.pop('death_penalty_enabled',None)
             for target in config['targets']:
                 if target['id']==config['study_target']:
                     target['pin']=self.target_pin.get()
@@ -172,6 +170,36 @@ class App:
             self.append(f'设置未能保存：{exc}');return False
         if report:self.append('设置已保存；模式和目标立即切换；公共计时、置顶参数暂停并恢复后生效。')
         return True
+
+    def confirm_download(self,cancelled):
+        """下载线程请求明确同意；不阻塞游戏监测，也不持久保存同意。"""
+        reply=threading.Event();answer={'approved':False}
+        self.events.put(('download_request',(reply,answer,cancelled)))
+        deadline=time.monotonic()+30
+        while not reply.wait(.1):
+            if cancelled.is_set() or self.closing or self.stop_event.is_set() or time.monotonic()>=deadline:
+                cancelled.set();return False
+        return bool(answer['approved'] and not cancelled.is_set() and not self.closing and not self.stop_event.is_set())
+
+    def show_download_prompt(self,request):
+        reply,answer,cancelled=request
+        if cancelled.is_set() or self.closing or self.stop_event.is_set():reply.set();return None
+        dialog=tk.Toplevel(self.root);dialog.title('官网下载确认');dialog.geometry('520x200');dialog.transient(self.root)
+        dialog.attributes('-topmost',True)  # 高于正在置顶的官网；确认或取消后销毁，复活时自动清理。
+        ttk.Label(dialog,text='已打开原神官网。是否从官网下载 Windows 客户端安装程序或启动器？\n不会自动运行或安装。',wraplength=480).pack(padx=18,pady=20)
+        def finish(approved=False):
+            answer['approved']=bool(approved and not cancelled.is_set());reply.set()
+            if dialog.winfo_exists():dialog.destroy()
+        buttons=ttk.Frame(dialog);buttons.pack(pady=8)
+        ttk.Button(buttons,text='确认下载',command=lambda:finish(True)).pack(side='left',padx=8)
+        ttk.Button(buttons,text='仅保留官网',command=finish).pack(side='left',padx=8)
+        dialog.protocol('WM_DELETE_WINDOW',finish)
+        def watch():
+            if not dialog.winfo_exists():return
+            if cancelled.is_set() or self.closing or self.stop_event.is_set():finish();return
+            dialog.after(100,watch)
+        dialog.after(100,watch);dialog.lift()
+        return dialog
 
     def current_display_mode(self, fallback):
         mode=getattr(self,'config',{}).get('game_display_mode',fallback)
@@ -389,6 +417,7 @@ class App:
         report=lambda text:self.events.put(('log',text))
         tracker=MatchTracker()
         runtime=ModeRuntime(self.windows,ROOT,config,self.ledger,report,self.log_return_result,self.registry)
+        runtime.download_factory=lambda report:OfficialDownload(report,self.confirm_download)
         runtime.stopped=stop_event.is_set;self.runtime=runtime
         source=GameData();source_pid=None;process_key=None;capture=None;last_error=''
         try:
@@ -451,6 +480,7 @@ class App:
             if kind=='log':self.append(value)
             elif kind=='status':self.status.set(value)
             elif kind=='penalty':self.penalty_status.set(value)
+            elif kind=='download_request':self.show_download_prompt(value)
             elif kind=='discovery':
                 target_id,path,updates=value;self.path_label.set(('发现目标启动程序：'+path) if path else '未自动发现；可使用已安装软件列表或文件选择器添加')
                 if path:

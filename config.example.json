@@ -19,7 +19,6 @@
   "mode": "study",
   "study_target": "anki",
   "entertainment_site": "bilibili",
-  "death_penalty_enabled": false,
   "targets": [
     {
       "id": "anki",

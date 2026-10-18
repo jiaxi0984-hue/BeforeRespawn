@@ -68,8 +68,9 @@ def click_expression(entry, attempt_key):
 
 
 class OfficialDownload:
-    def __init__(self, report):
+    def __init__(self, report, approve=None):
         self.report = report
+        self.approve = approve or (lambda cancelled: False)
         self.thread = None
         self.cancelled = threading.Event()
 
@@ -89,6 +90,10 @@ class OfficialDownload:
                     return
                 # 每局彩蛋强制导航一次官网，避免复用窗口已被用户浏览到别处。
                 adapter.navigate_home()
+                status('官网已打开，等待使用者确认客户端下载')
+                if not self.approve(self.cancelled):
+                    status('官网保留；未确认下载，本局不再提示')
+                    return
                 entry = None
                 for _ in range(60):
                     if self.cancelled.is_set():

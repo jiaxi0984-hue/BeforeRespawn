@@ -21,7 +21,7 @@ def migrate_config(saved=None):
     config.setdefault('mode', 'study')
     config.setdefault('study_target', 'anki')
     config.setdefault('entertainment_site', 'bilibili')
-    config.setdefault('death_penalty_enabled', False)
+    config.pop('death_penalty_enabled', None)  # 旧开关不再控制内置娱乐事件。
     config.setdefault('targets', [dict(id='anki', name='Anki', adapter='anki',
         command=[config['anki_path']] if config['anki_path'] else [], process_path='',
         title_contains='', window_class='', pin=config['persistent_anki_topmost'])])
@@ -78,8 +78,6 @@ def validate_config(config):
         names.add(target['name'].casefold())
     if config['study_target'] not in ids:
         raise ValueError('选中的学习软件不存在')
-    if type(config['death_penalty_enabled']) is not bool:
-        raise ValueError('死亡惩罚开关必须为布尔值')
 
 
 def selected_spec(config):
@@ -92,4 +90,4 @@ def selected_spec(config):
 
 def mode_key(config):
     import json
-    return json.dumps([config['mode'], selected_spec(config), config['death_penalty_enabled']], sort_keys=True, ensure_ascii=False)
+    return json.dumps([config['mode'], selected_spec(config)], sort_keys=True, ensure_ascii=False)
