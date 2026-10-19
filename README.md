@@ -79,27 +79,28 @@ cd LOL-Words-zhandoushuang
 
 完整默认例子见 [config.example.json](config.example.json)，自定义例子和字段说明见 [CONFIG.md](CONFIG.md)。
 
-| 模块 | 职责 |
+## 源码结构
+
+Python 文件已按功能归入 `lol_words/`，完整目录与开发入口见 [STRUCTURE.md](STRUCTURE.md)。
+
+| 目录 | 职责 |
 |---|---|
-| `app.py` / `desktop_ui.py` | Qt 桌面入口与五个页面 |
-| `application_service.py` / `monitoring.py` / `ui_state.py` | 无界面应用服务、唯一监测编排与真实状态投影 |
-| `core.py` | 本人身份、快照、灰屏门槛、死亡状态机 |
-| `study_flow.py` | 延迟、画面证据、后台回退、窗口动作协调 |
-| `adapters.py` / `browser_target.py` | 统一目标接口、桌面与专用网页适配、复用预算 |
-| `mode_config.py` / `mode_runtime.py` | 配置迁移、模式切换、目标优先级 |
-| `penalty.py` / `state_store.py` | 本人累计死亡、本局一次触发、原子持久化与进程间锁 |
-| `official_download.py` | 官方 PC 入口检查、单次点击与取消 |
-| `native.py` / `capture.py` | Windows 窗口元数据及采样，不读写游戏内存 |
-| `catalog.py` / `learning_catalog.json` | 官网名称、别名、官方来源、名称搜索与用户确认项 |
-| `software_catalog.py` | 软件库与实际安装信息交叉检测 |
+| `lol_words/application/` | 应用入口、后台服务与唯一监测编排 |
+| `lol_words/ui/` | 六页 Qt 界面、真实状态投影与历史回归界面 |
+| `lol_words/game/` | 本人状态、死亡延迟、灰屏保护、复活与对局追踪 |
+| `lol_words/targets/` | 学习软件与网页适配、复用、名称搜索和安装发现 |
+| `lol_words/modes/` | 模式配置、迁移与生命周期 |
+| `lol_words/lobby/` | 大厅连接、赛后返回、转让队长、接受及异常恢复 |
+| `lol_words/system/` | Windows 操作、窗口层级、采样、权限与存储 |
+| `launchers/`、`tools/`、`tests/` | 双击入口、检查 / 打包脚本与测试 |
 
 ## 验证与限制
 
-当前 **346 项自动化测试通过**，包含状态隔离、跨局清理、名称解析、官网候选过滤、软件库检测、配置迁移、窗口管理、权限差异与管理员重启门控、模拟下载。没有在测试中下载实际安装包。
+当前 **350 项自动化测试通过**，包含状态隔离、跨局清理、名称解析、官网候选过滤、软件库检测、配置迁移、窗口管理、权限差异与管理员重启门控、模拟下载及目录迁移后的入口 / 资源 / 辅助进程验证。没有在测试中下载实际安装包。
 
 ```powershell
 python -B -m unittest discover -s tests -v
-python app.py --check
+python -m lol_words --check
 python tools/check_target_window.py
 python tools/check_browser_readonly.py
 ```

@@ -1,5 +1,5 @@
 """大厅状态机与真实服务接口边界；不连接客户端、不发送真实游戏操作。"""
-import runtime_bootstrap
+from lol_words.system import runtime_bootstrap
 import copy
 import json
 from pathlib import Path
@@ -7,11 +7,11 @@ import tempfile
 import threading
 import unittest
 from unittest.mock import Mock,patch
-from lcu_api import ClientSnapshot,Connection,LCUClient,LCUError,Member,OPERATIONS,parse_lobby,parse_lockfile,parse_commandline,stable_id
-from lobby_flow import ActionJournal,LobbyFlow
-from lobby_config import settings,validate
-from mode_config import migrate_config
-from client_surface import Evidence
+from lol_words.lobby.lcu_api import ClientSnapshot,Connection,LCUClient,LCUError,Member,OPERATIONS,parse_lobby,parse_lockfile,parse_commandline,stable_id
+from lol_words.lobby.lobby_flow import ActionJournal,LobbyFlow
+from lol_words.lobby.lobby_config import settings,validate
+from lol_words.modes.mode_config import migrate_config
+from lol_words.lobby.client_surface import Evidence
 
 
 ACCOUNT='puuid:myself0001'

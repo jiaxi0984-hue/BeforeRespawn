@@ -1,5 +1,5 @@
 """大厅配置、异步状态与全局暂停连接；外部客户端完全由替身隔离。"""
-import runtime_bootstrap
+from lol_words.system import runtime_bootstrap
 import copy
 from pathlib import Path
 import tempfile
@@ -8,11 +8,11 @@ import time
 import unittest
 from unittest.mock import Mock,patch
 from PySide6.QtWidgets import QApplication
-from application_service import ApplicationService
-from desktop_ui import MainWindow
-from lobby_flow import LobbyStatus
-from lobby_runtime import LobbyRuntime
-from lcu_api import LCUError
+from lol_words.application.application_service import ApplicationService
+from lol_words.ui.desktop_ui import MainWindow
+from lol_words.lobby.lobby_flow import LobbyStatus
+from lol_words.lobby.lobby_runtime import LobbyRuntime
+from lol_words.lobby.lcu_api import LCUError
 from test_desktop_service import FakeNative
 
 QT=QApplication.instance() or QApplication([])

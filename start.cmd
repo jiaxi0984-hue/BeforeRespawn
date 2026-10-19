@@ -9,20 +9,20 @@ if exist "%~dp0runtime-python.txt" set /p "LOL_ANKI_RUNTIME="<"%~dp0runtime-pyth
 if defined LOL_ANKI_RUNTIME if exist "%LOL_ANKI_RUNTIME%" (
     "%LOL_ANKI_RUNTIME%" -c "import sys; assert sys.version_info[:2] == (3, 14)" >nul 2>nul
     if not errorlevel 1 (
-        "%LOL_ANKI_RUNTIME%" app.py %*
+        "%LOL_ANKI_RUNTIME%" -m lol_words %*
         if errorlevel 1 pause
         exit /b
     )
 )
 py -3.14 -c "import sys; assert sys.version_info[:2] == (3, 14)" >nul 2>nul
 if not errorlevel 1 (
-    py -3.14 app.py %*
+    py -3.14 -m lol_words %*
     if errorlevel 1 pause
     exit /b
 )
 python -c "import sys; assert sys.version_info[:2] == (3, 14)" >nul 2>nul
 if not errorlevel 1 (
-    python app.py %*
+    python -m lol_words %*
     if errorlevel 1 pause
     exit /b
 )

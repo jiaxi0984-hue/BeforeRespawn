@@ -8,10 +8,10 @@ import tempfile
 import time
 import uuid
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from native import Windows
-from browser_target import BrowserAdapter, find_browser
-from mode_config import GENSHIN_HOME
-from official_download import INSPECT_PC
+from lol_words.system.native import Windows
+from lol_words.targets.browser_target import BrowserAdapter, find_browser
+from lol_words.modes.mode_config import GENSHIN_HOME
+from lol_words.modes.official_download import INSPECT_PC
 
 
 def main():

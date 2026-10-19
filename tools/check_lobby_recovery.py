@@ -5,12 +5,12 @@ import sys
 import threading
 import time
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-import runtime_bootstrap
+from lol_words.system import runtime_bootstrap
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor,QFont,QImage,QPainter
 from PySide6.QtWidgets import QApplication,QWidget,QPushButton
-from native import Windows
-from client_surface import ClientSurface,Frame
+from lol_words.system.native import Windows
+from lol_words.lobby.client_surface import ClientSurface,Frame
 
 
 def main():

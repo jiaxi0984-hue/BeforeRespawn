@@ -9,11 +9,11 @@ import xml.etree.ElementTree as ET
 import unittest
 from unittest.mock import Mock,patch
 import test_app
-from legacy_app import App
-from catalog import LearningCatalog,installer_name,online_candidates
-from software_catalog import scan_learning_apps,detected_target,split_arguments
-from mode_config import validate_target
-from penalty import DeathLedger
+from lol_words.ui.legacy_app import App
+from lol_words.targets.catalog import LearningCatalog,installer_name,online_candidates
+from lol_words.targets.software_catalog import scan_learning_apps,detected_target,split_arguments
+from lol_words.modes.mode_config import validate_target
+from lol_words.modes.penalty import DeathLedger
 
 
 class CatalogCase(unittest.TestCase):
@@ -205,7 +205,7 @@ class OnlineCandidateTests(CatalogCase):
         return io.BytesIO(ET.tostring(root,encoding='utf-8'))
 
     def test_candidates_are_unverified_and_not_automatically_saved(self):
-        with patch('catalog.urllib.request.urlopen',return_value=self.response([('自选学习器 官方网站','https://study.example.org/')])):
+        with patch('lol_words.targets.catalog.urllib.request.urlopen',return_value=self.response([('自选学习器 官方网站','https://study.example.org/')])):
             items=online_candidates('自选学习器')
         self.assertEqual(items[0]['verification'],'unverified')
         self.assertIsNone(self.catalog.resolve('自选学习器'))
@@ -214,28 +214,28 @@ class OnlineCandidateTests(CatalogCase):
     def test_unrelated_results_download_links_and_aggregators_are_filtered(self):
         candidates=[('别的应用','https://other.example.org/'),('自选学习器 下载','https://study.example.org/setup.exe'),
                     ('自选学习器 官方','https://www.php.cn/download'),('自选学习器 官网','https://study.example.org/')]
-        with patch('catalog.urllib.request.urlopen',return_value=self.response(candidates)):
+        with patch('lol_words.targets.catalog.urllib.request.urlopen',return_value=self.response(candidates)):
             items=online_candidates('自选学习器')
         self.assertEqual([i['url'] for i in items],['https://study.example.org/'])
 
     def test_private_addresses_and_embedded_credentials_not_offered(self):
         candidates=[('自选学习器','https://127.0.0.1/'),('自选学习器','https://10.0.0.1/'),
                     ('自选学习器','https://localhost/'),('自选学习器','https://user:pass@study.example.org/')]
-        with patch('catalog.urllib.request.urlopen',return_value=self.response(candidates)):
+        with patch('lol_words.targets.catalog.urllib.request.urlopen',return_value=self.response(candidates)):
             self.assertEqual(online_candidates('自选学习器'),[])
 
     def test_repeated_domains_deduplicate_and_results_are_bounded(self):
         candidates=[('自选学习器官网','https://study.example.org/a'),('自选学习器官网','https://study.example.org/b')]
         candidates += [('自选学习器官网',f'https://study{i}.example.org/') for i in range(12)]
-        with patch('catalog.urllib.request.urlopen',return_value=self.response(candidates)):
+        with patch('lol_words.targets.catalog.urllib.request.urlopen',return_value=self.response(candidates)):
             self.assertEqual(len(online_candidates('自选学习器')),8)
 
     def test_oversized_search_response_is_rejected(self):
-        with patch('catalog.urllib.request.urlopen',return_value=io.BytesIO(b'x'*300001)),self.assertRaises(ValueError):
+        with patch('lol_words.targets.catalog.urllib.request.urlopen',return_value=io.BytesIO(b'x'*300001)),self.assertRaises(ValueError):
             online_candidates('自选学习器')
 
     def test_name_must_be_present_before_network_request(self):
-        with patch('catalog.urllib.request.urlopen') as request,self.assertRaises(ValueError):online_candidates('')
+        with patch('lol_words.targets.catalog.urllib.request.urlopen') as request,self.assertRaises(ValueError):online_candidates('')
         request.assert_not_called()
 
 

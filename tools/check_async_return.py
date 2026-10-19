@@ -8,8 +8,8 @@ import time
 import uuid
 import os
 sys.path.insert(0, os.environ.get('LOL_ANKI_APP_DIR', str(Path(__file__).resolve().parents[1])))
-from native import Windows
-from presentation import StudyWindow
+from lol_words.system.native import Windows
+from lol_words.system.presentation import StudyWindow
 
 w = Windows()
 if w.league_pid():

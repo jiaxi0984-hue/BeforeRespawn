@@ -8,9 +8,9 @@ import tempfile
 import time
 import uuid
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from adapters import DesktopAdapter, TargetWindows
-from native import Windows
-from presentation import StudyWindow
+from lol_words.targets.adapters import DesktopAdapter, TargetWindows
+from lol_words.system.native import Windows
+from lol_words.system.presentation import StudyWindow
 
 
 def main():

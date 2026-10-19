@@ -1,22 +1,22 @@
 """权限差异、重新发现与管理员重启门控；所有提权和网络调用均为替身。"""
-import runtime_bootstrap
+from lol_words.system import runtime_bootstrap
 import json
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import Mock,patch
-from lcu_api import ClientDiscovery,Connection,LCUError
-from lobby_flow import LobbyStatus
+from lol_words.lobby.lcu_api import ClientDiscovery,Connection,LCUError
+from lol_words.lobby.lobby_flow import LobbyStatus
 import test_lobby_ui as lobby_fixture
-from privileges import restart_elevated
+from lol_words.system.privileges import restart_elevated
 
 
 class DiscoveryTests(unittest.TestCase):
     def discover(self,elevated=False,client_elevated=True,command=None):
         native=Mock();native.processes.return_value=[(123,'leagueclientux.exe')];native.k.OpenProcess.return_value=0
         result=Mock(stdout=json.dumps([dict(ProcessId=123,CommandLine=command)]).encode())
-        with patch('winreg.OpenKey',side_effect=OSError),patch('lcu_api.subprocess.run',return_value=result),\
-             patch('lcu_api.is_elevated',return_value=elevated),patch('lcu_api.process_elevated',return_value=client_elevated):
+        with patch('winreg.OpenKey',side_effect=OSError),patch('lol_words.lobby.lcu_api.subprocess.run',return_value=result),\
+             patch('lol_words.lobby.lcu_api.is_elevated',return_value=elevated),patch('lol_words.lobby.lcu_api.process_elevated',return_value=client_elevated):
             discovery=ClientDiscovery(native);connection=discovery.find(10)
         return discovery,connection
 
@@ -45,18 +45,18 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_elevation_command_uses_original_directory_and_starts_paused(self):
         with tempfile.TemporaryDirectory(dir=Path(__file__).parent,prefix='提权 空格') as folder:
-            root=Path(folder);(root/'app.pyw').write_text('# fixture',encoding='utf-8')
+            root=Path(folder);(root/'launchers').mkdir();(root/'launchers/start.pyw').write_text('# fixture',encoding='utf-8')
             shell=Mock();shell.ShellExecuteW.return_value=42
-            with patch('privileges.C.WinDLL',return_value=shell):restart_elevated(root)
+            with patch('lol_words.system.privileges.C.WinDLL',return_value=shell):restart_elevated(root)
             args=shell.ShellExecuteW.call_args.args
             self.assertEqual(args[1],'runas');self.assertEqual(args[4],str(root.resolve()))
-            self.assertIn('--paused --lobby',args[3]);self.assertIn('app.pyw"',args[3])
+            self.assertIn('--paused --lobby',args[3]);self.assertIn('start.pyw"',args[3])
 
     def test_windows_consent_cancellation_is_reported_without_retry(self):
         with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as folder:
-            root=Path(folder);(root/'app.pyw').write_text('# fixture',encoding='utf-8')
+            root=Path(folder);(root/'launchers').mkdir();(root/'launchers/start.pyw').write_text('# fixture',encoding='utf-8')
             shell=Mock();shell.ShellExecuteW.return_value=0
-            with patch('privileges.C.WinDLL',return_value=shell),patch('privileges.C.get_last_error',return_value=1223):
+            with patch('lol_words.system.privileges.C.WinDLL',return_value=shell),patch('lol_words.system.privileges.C.get_last_error',return_value=1223):
                 with self.assertRaisesRegex(ValueError,'已取消管理员重启'):restart_elevated(root)
             self.assertEqual(shell.ShellExecuteW.call_count,1)
 
@@ -89,7 +89,7 @@ class ConnectionUiTests(unittest.TestCase):
         self.assertTrue(self.window.auto_accept.isChecked());self.assertIn('尚未保存',self.window.lobby_notice.text())
 
     def test_restart_waits_for_cleanup_and_cannot_resume_monitoring_while_pending(self):
-        with patch.object(self.service,'settled',return_value=False),patch('desktop_ui.restart_elevated') as launch:
+        with patch.object(self.service,'settled',return_value=False),patch('lol_words.ui.desktop_ui.restart_elevated') as launch:
             self.window.request_admin_restart();self.window.tick()
             launch.assert_not_called();self.assertFalse(self.window.pause_button.isEnabled())
         self.assertTrue(self.service.stop_event.is_set())

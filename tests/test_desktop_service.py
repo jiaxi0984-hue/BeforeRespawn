@@ -1,5 +1,5 @@
 """Qt 与真实服务连接测试；外部软件、对局与下载由替身隔离。"""
-import runtime_bootstrap
+from lol_words.system import runtime_bootstrap
 import copy
 import json
 from pathlib import Path
@@ -12,13 +12,13 @@ from unittest.mock import Mock, patch
 from PySide6.QtCore import Qt, QRect
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QDialog, QPushButton
-from application_service import ApplicationService
-from desktop_ui import MainWindow, DownloadPrompt, TargetEditor
-from mode_config import migrate_config, selected_spec
-from ui_state import RuntimeState, flow_status
-from adapters import DesktopAdapter, AnkiAdapter
-from monitoring import run_monitor
-from core import Snapshot
+from lol_words.application.application_service import ApplicationService
+from lol_words.ui.desktop_ui import MainWindow, DownloadPrompt, TargetEditor
+from lol_words.modes.mode_config import migrate_config, selected_spec
+from lol_words.ui.ui_state import RuntimeState, flow_status
+from lol_words.targets.adapters import DesktopAdapter, AnkiAdapter
+from lol_words.application.monitoring import run_monitor
+from lol_words.game.core import Snapshot
 
 
 QT = QApplication.instance() or QApplication([])
@@ -108,23 +108,23 @@ class ServiceCase(unittest.TestCase):
         release.set(); self.assertEqual(self.job('scan')[1],'ok')
 
     def test_scan_empty_and_failure_are_different_results(self):
-        with patch('application_service.scan_learning_apps',return_value=[]) as scan:
+        with patch('lol_words.application.application_service.scan_learning_apps',return_value=[]) as scan:
             self.service.scan(); self.assertEqual(self.job('scan'),('scan','ok',[])); self.assertTrue(scan.call_args.kwargs['strict'])
-        with patch('application_service.scan_learning_apps',side_effect=OSError()):
+        with patch('lol_words.application.application_service.scan_learning_apps',side_effect=OSError()):
             self.service.scan(); result=self.job('scan'); self.assertEqual(result[1],'error'); self.assertIn('失败',result[2])
 
     def test_catalog_search_is_offline_and_candidates_are_not_saved(self):
-        with patch('application_service.online_candidates') as remote:
+        with patch('lol_words.application.application_service.online_candidates') as remote:
             self.service.search('Anki'); result=self.job('search'); self.assertEqual(result[2]['kind'],'catalog'); remote.assert_not_called()
         candidate=dict(title='未收录学习软件',url='https://example.org/',domain='example.org',verification='unverified')
-        with patch('application_service.online_candidates',return_value=[candidate]):
+        with patch('lol_words.application.application_service.online_candidates',return_value=[candidate]):
             self.service.search('未收录学习软件'); result=self.job('search'); self.assertEqual(result[2]['kind'],'candidates')
         self.assertFalse((self.root/'runtime/catalog-overrides.json').exists())
 
     def test_unknown_name_network_error_and_no_result_are_distinct(self):
-        with patch('application_service.online_candidates',return_value=[]):
+        with patch('lol_words.application.application_service.online_candidates',return_value=[]):
             self.service.search('未收录名称'); self.assertEqual(self.job('search')[2]['items'],[])
-        with patch('application_service.online_candidates',side_effect=OSError('connection')):
+        with patch('lol_words.application.application_service.online_candidates',side_effect=OSError('connection')):
             self.service.search('未收录名称'); result=self.job('search'); self.assertEqual(result[1],'error'); self.assertIn('网络',result[2])
 
     def test_user_confirmed_website_is_persisted_and_selected(self):
@@ -177,7 +177,7 @@ class ServiceCase(unittest.TestCase):
             def is_set(self): return self.counter>=2
             def wait(self,seconds): self.counter+=1
         stop=Stop()
-        with patch('monitoring.ModeRuntime') as runtime_type:
+        with patch('lol_words.application.monitoring.ModeRuntime') as runtime_type:
             runtime=runtime_type.return_value
             runtime.manager.adapter.spec={'id':'anki','adapter':'anki','name':'Anki'};runtime.manager.state='idle';runtime.manager.adapter.reason='未运行'
             runtime.manager.last_failure=''; runtime.primary=runtime.manager;runtime.presentation.owned=False
@@ -258,7 +258,7 @@ class QtCase(unittest.TestCase):
     def test_unknown_candidate_requires_confirmation_before_persist_or_open(self):
         item=dict(title='测试站',url='https://example.org/',domain='example.org')
         self.window.render_sites([item],'candidates','测试站');self.window.site_list.setCurrentRow(0)
-        with patch('desktop_ui.QMessageBox.question',return_value=QMessageBox.StandardButton.Cancel), patch.object(self.service,'reopen_target') as open_target:
+        with patch('lol_words.ui.desktop_ui.QMessageBox.question',return_value=QMessageBox.StandardButton.Cancel), patch.object(self.service,'reopen_target') as open_target:
             self.window.select_site();open_target.assert_not_called()
         self.assertFalse((self.root/'runtime/catalog-overrides.json').exists())
 
@@ -290,7 +290,7 @@ class QtCase(unittest.TestCase):
     def test_editor_file_picker_preserves_advanced_match_conditions(self):
         exe=self.root/'words.exe';exe.write_bytes(b'fixture-not-executable')
         editor=TargetEditor(self.window)
-        with patch('desktop_ui.QFileDialog.getOpenFileName',return_value=(str(exe),'')): editor.browse()
+        with patch('lol_words.ui.desktop_ui.QFileDialog.getOpenFileName',return_value=(str(exe),'')): editor.browse()
         editor.title_match.setText('背词');editor.class_match.setText('WordsWindow');editor.pin.setChecked(False);editor.save()
         self.assertEqual(editor.result(),QDialog.DialogCode.Accepted)
         self.assertEqual(editor.result_spec['process_path'],str(exe));self.assertEqual(editor.result_spec['title_contains'],'背词');self.assertFalse(editor.result_spec['pin'])

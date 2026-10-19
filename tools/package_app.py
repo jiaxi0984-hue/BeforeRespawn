@@ -8,13 +8,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-CODE = ['app.py', 'app.pyw', 'application_service.py', 'desktop_ui.py', 'ui_state.py', 'monitoring.py',
-        'runtime_bootstrap.py', 'legacy_app.py', 'core.py', 'study_flow.py', 'adapters.py', 'browser_target.py',
-        'mode_config.py', 'mode_runtime.py', 'catalog.py', 'software_catalog.py', 'native.py', 'automation.py',
-        'presentation.py', 'game_api.py', 'capture.py', 'discovery.py', 'penalty.py', 'state_store.py', 'official_download.py',
-        'lcu_api.py', 'lobby_config.py', 'lobby_flow.py', 'lobby_runtime.py', 'client_surface.py', 'client_accessibility.py',
-        'privileges.py', 'start-admin.cmd',
-        'tools/ocr_client.ps1', 'LOBBY.md',
+CODE = ['launchers/start.pyw', 'start-admin.cmd', 'lol_words/lobby/ocr_client.ps1', 'LOBBY.md', 'STRUCTURE.md',
         'requirements.txt', 'requirements-capture.txt', 'start.cmd', 'install.cmd', 'config.example.json', 'learning_catalog.json',
         'README.md', 'CONFIG.md', 'CATALOG.md', 'DESKTOP.md', '验证记录.md', 'THIRD_PARTY_NOTICES.md', 'LICENSE', '.gitignore', '.gitattributes']
 
@@ -23,6 +17,7 @@ def main():
     parser = argparse.ArgumentParser(); parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--with-deps', action='store_true'); args = parser.parse_args()
     files = [ROOT / name for name in CODE]
+    files += list((ROOT/'lol_words').rglob('*.py'))
     files += list((ROOT/'tests').glob('test_*.py')) + list((ROOT/'tools').glob('*.py'))
     for directory in ['docs', 'licenses', 'assets']:
         if (ROOT/directory).exists(): files += [p for p in (ROOT/directory).rglob('*') if p.is_file()]

@@ -9,15 +9,15 @@ APP_DIR = Path(os.environ.get('LOL_ANKI_APP_DIR', str(Path(__file__).resolve().p
 sys.path.insert(0, str(APP_DIR))
 if (APP_DIR / '_deps').is_dir():
     sys.path.insert(0, str(APP_DIR / '_deps'))
-from core import DeathSession, FrameStats, GrayGate, Snapshot, frame_stats, own_snapshot
-from legacy_app import App, DEFAULTS
-from automation import MatchTracker
-from adapters import TargetManager
-from penalty import DeathLedger
-from discovery import executable_from, locate_anki
-from game_api import GameData, NoRedirect
-from presentation import StudyWindow
-from native import Windows
+from lol_words.game.core import DeathSession, FrameStats, GrayGate, Snapshot, frame_stats, own_snapshot
+from lol_words.ui.legacy_app import App, DEFAULTS
+from lol_words.game.automation import MatchTracker
+from lol_words.targets.adapters import TargetManager
+from lol_words.modes.penalty import DeathLedger
+from lol_words.targets.discovery import executable_from, locate_anki
+from lol_words.game.game_api import GameData, NoRedirect
+from lol_words.system.presentation import StudyWindow
+from lol_words.system.native import Windows
 
 
 class SessionTests(unittest.TestCase):
@@ -339,7 +339,7 @@ class DiscoveryTests(unittest.TestCase):
             install.mkdir(parents=True)
             exe = install / 'Anki.exe'
             exe.write_bytes(b'test fixture')
-            with patch('discovery.local_roots', return_value=[base]), patch('discovery.registry_candidates', return_value=[]), patch('discovery.shutil.which', return_value=None):
+            with patch('lol_words.targets.discovery.local_roots', return_value=[base]), patch('lol_words.targets.discovery.registry_candidates', return_value=[]), patch('lol_words.targets.discovery.shutil.which', return_value=None):
                 self.assertEqual(locate_anki(), str(exe.resolve()))
 
     def test_registry_display_icon_arguments_parsed(self):
@@ -364,9 +364,9 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_shortcuts_with_unicode_targets(self):
         import json
-        from discovery import shortcut_candidates
+        from lol_words.targets.discovery import shortcut_candidates
         result = Mock(stdout=json.dumps(['E:/学习/Anki.exe'], ensure_ascii=False).encode('utf-8'))
-        with patch('discovery.subprocess.run', return_value=result):
+        with patch('lol_words.targets.discovery.subprocess.run', return_value=result):
             self.assertEqual(shortcut_candidates(), ['E:/学习/Anki.exe'])
 
 
@@ -455,7 +455,7 @@ class IntegrationTests(unittest.TestCase):
             def start(self): launch('Anki.exe')
         manager = TargetManager(Adapter(), lambda text: app.events.put(('log',text)))
         app.registry = Mock(get=lambda spec:manager)
-        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent) as state_dir, patch('legacy_app.GameData', Source), patch('legacy_app.SceneCapture', Capture), patch('legacy_app.time.monotonic', side_effect=lambda: float(stop.step)):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent) as state_dir, patch('lol_words.ui.legacy_app.GameData', Source), patch('lol_words.ui.legacy_app.SceneCapture', Capture), patch('lol_words.ui.legacy_app.time.monotonic', side_effect=lambda: float(stop.step)):
             app.ledger = DeathLedger(Path(state_dir)/'penalty.json')
             app.monitor(config, stop)
         return launches, w, list(app.events.queue)
@@ -610,7 +610,7 @@ class PresentationTests(unittest.TestCase):
             return original(hwnd) if len(calls) > 1 else False
         w.activate = activate
         p = StudyWindow(w, target_kind="anki")
-        with patch('presentation.time.sleep'):
+        with patch('lol_words.system.presentation.time.sleep'):
             self.assertTrue(p.show(3, 9, 'fullscreen'))
         self.assertEqual(len(calls), 2)
         p.release()
@@ -620,7 +620,7 @@ class PresentationTests(unittest.TestCase):
         original = w.activate
         w.activate = lambda hwnd: False if w.front == 'game' else original(hwnd)
         p = StudyWindow(w, target_kind="anki")
-        with patch('presentation.time.sleep'):
+        with patch('lol_words.system.presentation.time.sleep'):
             self.assertTrue(p.show(3, 9, 'borderless'))
         self.assertIn(('minimize', 9), w.operations)
         p.release()
@@ -629,7 +629,7 @@ class PresentationTests(unittest.TestCase):
         w = FakeWindows(True)
         w.activate = Mock(return_value=False)
         p = StudyWindow(w, target_kind="anki")
-        with patch('presentation.time.sleep'):
+        with patch('lol_words.system.presentation.time.sleep'):
             self.assertFalse(p.show(3, 9, 'fullscreen'))
         self.assertFalse(w.pinned)
         self.assertFalse(p.owned)
@@ -640,7 +640,7 @@ class PresentationTests(unittest.TestCase):
         w = FakeWindows(True)
         w.set_topmost = Mock(return_value=False)
         p = StudyWindow(w, target_kind="anki")
-        with patch('presentation.time.sleep'):
+        with patch('lol_words.system.presentation.time.sleep'):
             self.assertFalse(p.show(3, 9, 'borderless'))
         self.assertFalse(p.owned)
 
@@ -653,7 +653,7 @@ class PresentationTests(unittest.TestCase):
             calls.append(hwnd)
             return original(hwnd, activate) if len(calls) > 1 else False
         w.restore = restore
-        with patch('presentation.time.sleep'):
+        with patch('lol_words.system.presentation.time.sleep'):
             self.assertTrue(p.release())
         self.assertEqual(calls, [9, 9])
         self.assertFalse(w.pinned)
@@ -663,7 +663,7 @@ class CaptureBackendTests(unittest.TestCase):
     def capture(self, bounds=(-1920, 0, 0, 1080)):
         import numpy as np
         from types import SimpleNamespace as S
-        from capture import SceneCapture
+        from lol_words.system.capture import SceneCapture
         cap = SceneCapture.__new__(SceneCapture)
         cap.gdi = Mock()
         cap.gdi.read.return_value = b'gdi'
@@ -826,7 +826,7 @@ class NativeReturnTests(unittest.TestCase):
         w.u = Mock()
         w.is_iconic = Mock(return_value=True)
         w.activate = Mock(return_value=True)
-        with patch('native.time.monotonic', return_value=10):
+        with patch('lol_words.system.native.time.monotonic', return_value=10):
             self.assertFalse(w.restore(9))
         w.u.ShowWindowAsync.assert_called_once_with(9, 9)
         w.activate.assert_not_called()
@@ -836,9 +836,9 @@ class NativeReturnTests(unittest.TestCase):
         w.u = Mock()
         w.is_iconic = Mock(return_value=True)
         w.activate = Mock(return_value=True)
-        with patch('native.time.monotonic', return_value=10):
+        with patch('lol_words.system.native.time.monotonic', return_value=10):
             w.restore(9)
-        with patch('native.time.monotonic', return_value=10.1):
+        with patch('lol_words.system.native.time.monotonic', return_value=10.1):
             w.restore(9)
         self.assertEqual(w.u.ShowWindowAsync.call_count, 1)
         w.is_iconic.return_value = False
@@ -988,7 +988,7 @@ class GuiStartupTests(unittest.TestCase):
         windows.stop_pressed = lambda: False
         try:
             with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent) as folder, \
-                 patch('legacy_app.ROOT', Path(folder)), patch('legacy_app.Windows', return_value=windows), \
+                 patch('lol_words.ui.legacy_app.ROOT', Path(folder)), patch('lol_words.ui.legacy_app.Windows', return_value=windows), \
                  patch.object(App, 'rediscover'), patch.object(App, 'append'), \
                  patch.object(App, 'monitor') as monitor:
                 instance = App(root)

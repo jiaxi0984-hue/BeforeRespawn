@@ -6,13 +6,13 @@ import sys
 import tempfile
 import time
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import runtime_bootstrap
+from lol_words.system import runtime_bootstrap
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QFont
-from desktop_ui import MainWindow
-from application_service import ApplicationService
-from ui_state import RuntimeState
-from lobby_flow import LobbyStatus
+from lol_words.ui.desktop_ui import MainWindow
+from lol_words.application.application_service import ApplicationService
+from lol_words.ui.ui_state import RuntimeState
+from lol_words.lobby.lobby_flow import LobbyStatus
 
 
 def main():

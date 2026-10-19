@@ -3,9 +3,9 @@ import json
 from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-import runtime_bootstrap
-from lcu_api import ClientDiscovery,LCUClient,LCUError
-from native import Windows
+from lol_words.system import runtime_bootstrap
+from lol_words.lobby.lcu_api import ClientDiscovery,LCUClient,LCUError
+from lol_words.system.native import Windows
 import time
 
 

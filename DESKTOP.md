@@ -23,7 +23,7 @@
 
 1. 安装 Windows 10/11 64 位上的 **Python 3.14 64 位**。运行包附带项目依赖，但不附带 Python 解释器。
 2. 解压到独立目录，退出旧版本工具，双击 `start.cmd`。源码包首次使用先运行 `install.cmd`。
-3. 可双击 `app.pyw` 使用无控制台入口，前提是系统已将 `.pyw` 关联到 Python。启动错误会显示 Windows 提示并写入本机 `startup-error.log`。
+3. 可双击 `launchers/start.pyw` 使用无控制台入口，前提是系统已将 `.pyw` 关联到 Python。启动错误会显示 Windows 提示并写入本机 `startup-error.log`。
 4. 默认自动监测，学习目标为 Anki。目标首次满足安全切出条件时才自动启动；“打开 / 重新打开目标”为用户主动打开入口。
 5. 暂停快捷键仍为 **Ctrl + Alt + F8**。导航可使用 **Alt + 1–6**；各控件支持 Tab 切换，日志页支持 Ctrl + C 复制所选行。
 
@@ -54,16 +54,17 @@
 ## 结构与线程
 
 ```text
-app.py / app.pyw                桌面入口与依赖加载
-  ├─ desktop_ui.py             六页 Qt 界面、输入与非阻塞确认窗
-  └─ application_service.py    配置、目标操作、任务池、监测生命周期
-       └─ monitoring.py        唯一监测编排入口
-            └─ 原有 ModeRuntime / StudyFlow / 适配器 / Windows 操作
+python -m lol_words / launchers/start.pyw
+  ├─ lol_words/ui/desktop_ui.py                六页 Qt 界面
+  └─ lol_words/application/application_service.py
+       ├─ application/monitoring.py            唯一死亡监测编排
+       └─ lobby/lobby_runtime.py               独立大厅线程
+            └─ game/ · modes/ · targets/ · system/
 ```
 
 工作线程仅把状态、日志和任务结果放进线程安全队列。Qt 主线程使用定时器消费，不从工作线程修改控件。扫描、网络查询、目标发现与窗口操作均在后台；目标操作和监测窗口动作通过锁协调。模式 / 目标变化增加版本标识，旧手动打开结果不能激活新选择之外的窗口。
 
-旧 `app.py` 的 Tk 界面移到 `legacy_app.py`，仅保留为历史回归入口；其监测方法也调用同一个 `monitoring.run_monitor`，没有另写一套死亡检测。默认入口始终使用 Qt。
+历史 Tk 界面位于 `lol_words/ui/legacy_app.py`，仅保留为回归入口；其监测方法也调用同一个 `monitoring.run_monitor`，没有另写一套死亡检测。默认入口始终使用 Qt。全部目录映射见 [STRUCTURE.md](STRUCTURE.md)。
 
 ## 设置生效与配置兼容
 
@@ -104,7 +105,7 @@ app.py / app.pyw                桌面入口与依赖加载
 
 ```powershell
 python -B -m unittest discover -s tests -q
-python app.py --check
+python -m lol_words --check
 python tools/check_desktop_ui.py --output ..\outputs\desktop-ui\150
 python tools/check_target_window.py
 python tools/check_async_return.py
@@ -115,6 +116,6 @@ python tools/package_app.py --with-deps --output ..\outputs\LOL-Words-desktop-ru
 
 `--check` 只检查界面与画面采样，不监测游戏、启动目标或下载。窗口测试使用新建的临时进程，并在检测到真实游戏进程时跳过。截图检查只在没有游戏进程时启动真实等待监测，其他状态明确标为模拟。
 
-运行包保留完整源码、测试、文档、许可与依赖，包括大厅功能所需的 `lcu_api.py`。源码包保留相同项目文件，需安装依赖。包内 `BUILD-MANIFEST.json` 提供每个文件的摘要，旁附 `.sha256`；打包脚本校验 ZIP 完整性与全部文件摘要，不包含个人配置、运行日志、头像定位及浏览器资料。
+运行包保留完整源码、测试、文档、许可与依赖，包括大厅功能所需的 `lol_words/lobby/lcu_api.py`。源码包保留相同项目文件，需安装依赖。包内 `BUILD-MANIFEST.json` 提供每个文件的摘要，旁附 `.sha256`；打包脚本校验 ZIP 完整性与全部文件摘要，不包含个人配置、运行日志、头像定位及浏览器资料。
 
 本轮结果与真实游戏待测清单见 [验证记录.md](验证记录.md)。Qt 环境依据：[官方入门](https://doc.qt.io/qtforpython-6/gettingstarted.html)、[Essentials 包](https://pypi.org/project/PySide6-Essentials/6.12.0/)。

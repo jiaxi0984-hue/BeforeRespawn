@@ -8,13 +8,13 @@ from pathlib import Path
 import unittest
 from unittest.mock import Mock, patch
 import test_app as regression
-from adapters import DesktopAdapter, TargetManager, AdapterRegistry, TargetWindows
-from browser_target import BrowserAdapter
-from core import Snapshot, own_snapshot
-from mode_config import migrate_config, validate_config, selected_spec, GENSHIN_HOME
-from mode_runtime import ModeRuntime
-from official_download import OfficialDownload, INSPECT_PC, click_expression
-from penalty import DeathLedger
+from lol_words.targets.adapters import DesktopAdapter, TargetManager, AdapterRegistry, TargetWindows
+from lol_words.targets.browser_target import BrowserAdapter
+from lol_words.game.core import Snapshot, own_snapshot
+from lol_words.modes.mode_config import migrate_config, validate_config, selected_spec, GENSHIN_HOME
+from lol_words.modes.mode_runtime import ModeRuntime
+from lol_words.modes.official_download import OfficialDownload, INSPECT_PC, click_expression
+from lol_words.modes.penalty import DeathLedger
 
 
 class TempCase(unittest.TestCase):
@@ -181,7 +181,7 @@ class AdapterTests(TempCase):
         a=BrowserAdapter(dict(id='b',name='b',adapter='web',url='https://www.bilibili.com/'),self.w,self.root)
         identity=dict(pid=99,path='C:/Browser/msedge.exe',created=10)
         self.w.process_identity.return_value=identity
-        with patch('browser_target.find_browser',return_value='C:/Browser/msedge.exe'),patch('browser_target.subprocess.Popen',return_value=Mock(pid=99)) as launch:
+        with patch('lol_words.targets.browser_target.find_browser',return_value='C:/Browser/msedge.exe'),patch('lol_words.targets.browser_target.subprocess.Popen',return_value=Mock(pid=99)) as launch:
             a.start();a.start()
         launch.assert_called_once()
         args=launch.call_args.args[0]
@@ -198,7 +198,7 @@ class AdapterTests(TempCase):
         pages=[dict(id='unrelated',type='page',url='https://www.bilibili.com/',webSocketDebuggerUrl='ws://127.0.0.1:12345/devtools/page/unrelated'),
                dict(id='owned',type='page',url='https://www.bilibili.com/',webSocketDebuggerUrl='ws://127.0.0.1:12345/devtools/page/owned')]
         opener=Mock();opener.open.return_value=io.BytesIO(json.dumps(pages).encode())
-        with patch('browser_target.urllib.request.build_opener',return_value=opener):
+        with patch('lol_words.targets.browser_target.urllib.request.build_opener',return_value=opener):
             self.assertEqual(a.page()['id'],'owned')
         self.assertEqual(opener.open.call_args.args[0],'http://127.0.0.1:12345/json/list')
 
@@ -210,7 +210,7 @@ class AdapterTests(TempCase):
         (a.profile/'DevToolsActivePort').write_text('12345\n/devtools/browser/fixture',encoding='utf-8')
         pages=[dict(id='owned',type='page',url='https://www.bilibili.com/',webSocketDebuggerUrl='ws://example.com:12345/devtools/page/owned')]
         opener=Mock();opener.open.return_value=io.BytesIO(json.dumps(pages).encode())
-        with patch('browser_target.urllib.request.build_opener',return_value=opener),self.assertRaises(ValueError):a.page()
+        with patch('lol_words.targets.browser_target.urllib.request.build_opener',return_value=opener),self.assertRaises(ValueError):a.page()
 
     def test_easter_egg_navigation_forces_owned_page_back_to_official_home(self):
         adapter=BrowserAdapter(dict(id='genshin-penalty',name='原神官网',adapter='web',url=GENSHIN_HOME),self.w,self.root)
@@ -512,7 +512,7 @@ class DownloadTests(TempCase):
     def setUp(self):
         super().setUp();self.ledger=DeathLedger(self.root/'ledger.json')
         self.ledger.observe('本人',100,'game',21,1100);self.ledger.claim()
-        self.fallback=patch('official_download.verified_official_entry',return_value=None)
+        self.fallback=patch('lol_words.modes.official_download.verified_official_entry',return_value=None)
         self.fallback_mock=self.fallback.start();self.addCleanup(self.fallback.stop)
 
     def test_simulated_official_entry_is_clicked_only_once(self):
@@ -567,7 +567,7 @@ class DownloadTests(TempCase):
         self.assertIn('不自动重试',self.ledger.current['status'])
 
     def test_verified_official_fallback_submits_one_mock_download(self):
-        from official_download import OFFICIAL_PC_ENTRY
+        from lol_words.modes.official_download import OFFICIAL_PC_ENTRY
         self.fallback_mock.return_value=OFFICIAL_PC_ENTRY
         adapter=Mock();adapter.evaluate.return_value={'state':'waiting'}
         download=OfficialDownload(Mock(),approve=lambda cancelled:True)

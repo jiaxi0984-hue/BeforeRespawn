@@ -1,5 +1,5 @@
 """识别与窗口输入边界：图像为本地生成的替身，不截取用户客户端。"""
-import runtime_bootstrap
+from lol_words.system import runtime_bootstrap
 import json
 from pathlib import Path
 import tempfile
@@ -8,7 +8,7 @@ from unittest.mock import Mock,patch
 import numpy as np
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage
-from client_surface import ClientSurface,Frame,Evidence,match_avatar
+from lol_words.lobby.client_surface import ClientSurface,Frame,Evidence,match_avatar
 
 
 def picture(duplicate=False,flat=False):
@@ -76,7 +76,7 @@ class SurfaceTests(unittest.TestCase):
         pixels[400:430,200:400,:3]=250
         fresh=Frame(800,500,pixels.tobytes())
         evidence=Evidence(dict(hwnd=7),skip=dict(source='ocr',rect=[200,400,400,430]),frame=old)
-        with patch.object(self.surface,'valid',return_value=True),patch('client_surface.capture_client',return_value=fresh):
+        with patch.object(self.surface,'valid',return_value=True),patch('lol_words.lobby.client_surface.capture_client',return_value=fresh):
             self.assertFalse(self.surface.act('skip',evidence,lambda:True))
         self.native.u.SendInput.assert_not_called()
 
@@ -88,6 +88,6 @@ class SurfaceTests(unittest.TestCase):
 
     def test_ocr_timeout_is_bounded_and_temporary_image_is_removed(self):
         import subprocess
-        with patch('client_surface.subprocess.run',side_effect=subprocess.TimeoutExpired('ocr',4)):
+        with patch('lol_words.lobby.client_surface.subprocess.run',side_effect=subprocess.TimeoutExpired('ocr',4)):
             self.assertIsNone(self.surface.ocr(picture()))
         self.assertEqual(list((self.root/'runtime/client-ocr').glob('*.png')),[])
