@@ -31,6 +31,9 @@ class Windows:
         self.u.GetWindowTextLengthW.restype = C.c_int
         self.u.GetWindowTextW.argtypes = [W.HWND, W.LPWSTR, C.c_int]
         self.u.GetWindowTextW.restype = C.c_int
+        self.u.SendMessageTimeoutW.argtypes = [W.HWND, W.UINT, W.WPARAM, W.LPARAM,
+                                              W.UINT, W.UINT, C.POINTER(C.c_size_t)]
+        self.u.SendMessageTimeoutW.restype = C.c_ssize_t
         self.u.GetClassNameW.argtypes = [W.HWND, W.LPWSTR, C.c_int]
         self.u.GetClassNameW.restype = C.c_int
         self.u.GetWindowThreadProcessId.argtypes = [W.HWND, C.POINTER(W.DWORD)]
@@ -180,6 +183,16 @@ class Windows:
         return hwnd if self.kind(hwnd) == "game" else None
 
     def title(self, hwnd):
+        pid = W.DWORD()
+        self.u.GetWindowThreadProcessId(hwnd, C.byref(pid))
+        if pid.value == os.getpid():
+            # 后台发现线程枚举本工具 Qt 窗口时，限制跨线程消息等待。
+            # 主界面正在退出也不能让发现线程永久等待 WM_GETTEXT。
+            text = C.create_unicode_buffer(1024)
+            result = C.c_size_t()
+            if self.u.SendMessageTimeoutW(hwnd, 0x000D, len(text), C.addressof(text), 0x0002, 100, C.byref(result)):
+                return text.value
+            return ''
         text = C.create_unicode_buffer(self.u.GetWindowTextLengthW(hwnd) + 1)
         self.u.GetWindowTextW(hwnd, text, len(text))
         return text.value

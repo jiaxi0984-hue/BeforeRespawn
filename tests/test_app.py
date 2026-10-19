@@ -10,7 +10,7 @@ sys.path.insert(0, str(APP_DIR))
 if (APP_DIR / '_deps').is_dir():
     sys.path.insert(0, str(APP_DIR / '_deps'))
 from core import DeathSession, FrameStats, GrayGate, Snapshot, frame_stats, own_snapshot
-from app import App, DEFAULTS
+from legacy_app import App, DEFAULTS
 from automation import MatchTracker
 from adapters import TargetManager
 from penalty import DeathLedger
@@ -397,7 +397,7 @@ class ApiTests(unittest.TestCase):
 
 
 class IntegrationTests(unittest.TestCase):
-    def scenario(self, frames, present=False, overrides=None):
+    def scenario(self, frames, present=False, overrides=None, states=None):
         w = FakeWindows(present)
         class Stop:
             step = 0
@@ -442,6 +442,10 @@ class IntegrationTests(unittest.TestCase):
         config['death_switch_delay'] = 0
         config.update(overrides or {})
         app.config = dict(config)
+        if states is not None:
+            app.publish_state = states.append
+            app.last_return = ''
+            app.availability = {}
         w.process_identity = lambda pid: dict(pid=pid, created=1, path='fixture.exe')
         class Adapter:
             spec = dict(id='anki',name='Anki',pin=True)
@@ -451,7 +455,7 @@ class IntegrationTests(unittest.TestCase):
             def start(self): launch('Anki.exe')
         manager = TargetManager(Adapter(), lambda text: app.events.put(('log',text)))
         app.registry = Mock(get=lambda spec:manager)
-        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent) as state_dir, patch('app.GameData', Source), patch('app.SceneCapture', Capture), patch('app.time.monotonic', side_effect=lambda: float(stop.step)):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent) as state_dir, patch('legacy_app.GameData', Source), patch('legacy_app.SceneCapture', Capture), patch('legacy_app.time.monotonic', side_effect=lambda: float(stop.step)):
             app.ledger = DeathLedger(Path(state_dir)/'penalty.json')
             app.monitor(config, stop)
         return launches, w, list(app.events.queue)
@@ -984,7 +988,7 @@ class GuiStartupTests(unittest.TestCase):
         windows.stop_pressed = lambda: False
         try:
             with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent) as folder, \
-                 patch('app.ROOT', Path(folder)), patch('app.Windows', return_value=windows), \
+                 patch('legacy_app.ROOT', Path(folder)), patch('legacy_app.Windows', return_value=windows), \
                  patch.object(App, 'rediscover'), patch.object(App, 'append'), \
                  patch.object(App, 'monitor') as monitor:
                 instance = App(root)

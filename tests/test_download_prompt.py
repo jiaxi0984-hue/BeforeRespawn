@@ -3,7 +3,7 @@ import queue
 import threading
 import tkinter as tk
 import unittest
-from app import App
+from legacy_app import App
 
 
 class DownloadPromptTests(unittest.TestCase):

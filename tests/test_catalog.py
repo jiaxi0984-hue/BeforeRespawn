@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 import unittest
 from unittest.mock import Mock,patch
 import test_app
-from app import App
+from legacy_app import App
 from catalog import LearningCatalog,installer_name,online_candidates
 from software_catalog import scan_learning_apps,detected_target,split_arguments
 from mode_config import validate_target

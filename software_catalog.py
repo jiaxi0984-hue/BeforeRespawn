@@ -53,6 +53,8 @@ ConvertTo-Json -InputObject @($items) -Compress
     powershell = Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
     result = subprocess.run([str(powershell), '-NoProfile', '-NonInteractive', '-Command', script],
         capture_output=True, timeout=15, creationflags=subprocess.CREATE_NO_WINDOW)
+    if result.returncode:
+        raise OSError('安装登记采集未完成')
     items = json.loads(result.stdout.decode('utf-8-sig') or '[]')
     found = {}
     for item in items:
@@ -68,12 +70,14 @@ ConvertTo-Json -InputObject @($items) -Compress
     return sorted(found.values(), key=lambda item: item['name'].casefold())
 
 
-def scan_learning_apps(catalog, windows=None, project_root=None, records=None, configured_targets=()):
+def scan_learning_apps(catalog, windows=None, project_root=None, records=None, configured_targets=(), strict=False):
     """库中产品名称与本机事实交叉匹配；库本身不携带猜测的安装路径。"""
     provided=records is not None
     if not provided:
         try:records=installed_desktop_apps()
-        except (OSError,ValueError,subprocess.TimeoutExpired):records=[]
+        except (OSError,ValueError,subprocess.TimeoutExpired):
+            if strict:raise
+            records=[]
     records=list(records)
     if windows is not None:
         for row in windows.window_inventory():

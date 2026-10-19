@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 from test_app import FakeWindows
 import test_app as regression
-from app import App, DEFAULTS
+from legacy_app import App, DEFAULTS
 from core import DeathSession, Snapshot
 from presentation import StudyWindow
 from study_flow import StudyFlow
@@ -269,7 +269,7 @@ class SettingsTests(unittest.TestCase):
 
     def test_new_settings_saved_and_legacy_close_setting_removed(self):
         app = self.fake_app()
-        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent) as folder, patch('app.ROOT', Path(folder)):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent) as folder, patch('legacy_app.ROOT', Path(folder)):
             self.assertTrue(app.save())
             data = json.loads((Path(folder) / 'config.json').read_text(encoding='utf-8'))
         self.assertEqual(data['death_switch_delay'], 5)
@@ -282,7 +282,7 @@ class SettingsTests(unittest.TestCase):
             with self.subTest(value=value):
                 app = self.fake_app()
                 app.switch_delay = Mock(get=lambda: value)
-                with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent) as folder, patch('app.ROOT', Path(folder)), patch('app.messagebox.showerror'):
+                with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent) as folder, patch('legacy_app.ROOT', Path(folder)), patch('legacy_app.messagebox.showerror'):
                     self.assertFalse(app.save())
                     self.assertFalse((Path(folder) / 'config.json').exists())
 

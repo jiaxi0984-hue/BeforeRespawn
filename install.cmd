@@ -4,11 +4,11 @@ set PYTHONUTF8=1
 chcp 65001 >nul
 cd /d "%~dp0"
 if errorlevel 1 exit /b 1
-py -3.14 -c "import sys, tkinter; assert sys.version_info[:2] == (3,14)" >nul 2>nul
+py -3.14 -c "import sys; assert sys.version_info[:2] == (3,14)" >nul 2>nul
 if not errorlevel 1 goto use_launcher
-python -c "import sys, tkinter; assert sys.version_info[:2] == (3,14)" >nul 2>nul
+python -c "import sys; assert sys.version_info[:2] == (3,14)" >nul 2>nul
 if not errorlevel 1 goto use_python
-echo Python 3.14 with tkinter is required. Install it from python.org, then retry.
+echo 64-bit Python 3.14 is required. Install it from python.org, then retry.
 pause
 exit /b 1
 :use_launcher

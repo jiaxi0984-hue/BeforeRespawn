@@ -101,7 +101,9 @@ class AnkiAdapter(DesktopAdapter):
     def matches(self, item):
         path = normalized(item['path'])
         # 运行元数据来自精确 Anki 可执行文件；不按模糊标题认其他软件。
-        return path in self.allowed_paths and (not self.spec.get('title_contains') or self.spec['title_contains'].casefold() in item['title'].casefold())
+        return (path in self.allowed_paths
+                and (not self.spec.get('title_contains') or self.spec['title_contains'].casefold() in item['title'].casefold())
+                and (not self.spec.get('window_class') or self.spec['window_class'] == item['window_class']))
 
     def find(self):
         self.allowed_paths.update(normalized(path) for path in self.windows.anki_paths())
