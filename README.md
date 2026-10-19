@@ -12,7 +12,7 @@
 
 - **学习模式**：默认 Anki；可自动发现已安装软件、通过文件选择添加自定义桌面软件，或搜索学习官网。配置精确启动命令、进程路径、窗口标题/类名和目标置顶开关。
 - **娱乐模式**：哔哩哔哩官网或抖音官网，首次满足安全切出条件才创建专用 Edge/Chrome 窗口，后续复用。不会覆盖日常标签页。
-- **大厅助手**：可分别开启赛后返回组队房间、本人队长权限转让及自动接受对局。包含“跳过结算”和卡加载时右上头像回首页的有界恢复路径；不自动选英雄、不自动开始匹配。当前真实客户端异常场景待实测，详细说明见 [LOBBY.md](LOBBY.md)。
+- **大厅助手**：可分别开启赛后返回组队房间、本人队长权限转让及自动接受对局。包含“跳过结算”和卡加载时右上头像回首页的有界恢复路径；不自动选英雄、不自动开始匹配。当前真实客户端异常场景待实测，详细说明见 [LOBBY.md](docs/LOBBY.md)。
 - **目标复用**：整个工具运行期间，每个目标自动启动最多一次。用户关闭后不循环启动，可手动重新打开；暂停和下一局不重置启动预算。
 - **可靠窗口识别**：桌面软件使用完整进程路径和窗口条件；浏览器使用本工具创建的进程身份、创建时间、专用配置目录及页面标识。多个窗口无法唯一匹配时拒绝随意选择，已锁定窗口关闭后也不自动改选其他窗口。
 
@@ -22,7 +22,7 @@
 
 ![游戏伴侣桌面首页](docs/screenshots/01-home-real.png)
 
-完整页面与后端对应、启动方式、截图及迁移说明见 [DESKTOP.md](DESKTOP.md)。
+完整页面与后端对应、启动方式、截图及迁移说明见 [DESKTOP.md](docs/DESKTOP.md)。
 
 ## 安装与启动
 
@@ -43,7 +43,7 @@ cd LOL-Words-zhandoushuang
 
 “检测学习软件”通过持久的软件库匹配本机安装登记、应用路径登记、开始菜单和桌面快捷方式、运行进程及 Anki 常见目录，优先列出学习应用。支持名称过滤和查看未检测到的目录项目；实际找到的程序可直接选择使用。已有自定义学习目标也会检查并显示。找不到时仍可用文件选择器添加。
 
-首批内置 **17 个名称条目，其中 11 类已核实 Windows 客户端**，不是市场全量清单；目录和来源见 [CATALOG.md](CATALOG.md)，数据文件为 `learning_catalog.json`。只使用实际找到的程序路径，目录不预设或虚构本机安装位置。
+首批内置 **17 个名称条目，其中 11 类已核实 Windows 客户端**，不是市场全量清单；目录和来源见 [CATALOG.md](docs/CATALOG.md)，数据文件为 `learning_catalog.json`。只使用实际找到的程序路径，目录不预设或虚构本机安装位置。
 
 自定义桌面软件以参数数组启动，不经命令行外壳。先匹配精确进程路径，再匹配标题包含条件和类名；共享 Python/Java 等解释器时还必须配置窗口条件。使用启动器的软件可能需要把启动程序和实际进程路径分别配置。具体软件适配效果需单独验证。
 
@@ -77,11 +77,11 @@ cd LOL-Words-zhandoushuang
 
 旧 `config.json` 自动迁移，保留玩家匹配、延迟、提前返回、阈值等已有参数；旧 Anki 路径迁移到默认目标。缺少新参数时使用默认值，未知已有字段保留。无效配置不会被静默覆盖。
 
-完整默认例子见 [config.example.json](config.example.json)，自定义例子和字段说明见 [CONFIG.md](CONFIG.md)。
+完整默认例子见 [config.example.json](config.example.json)，自定义例子和字段说明见 [CONFIG.md](docs/CONFIG.md)。
 
 ## 源码结构
 
-Python 文件已按功能归入 `lol_words/`，完整目录与开发入口见 [STRUCTURE.md](STRUCTURE.md)。
+Python 文件已按功能归入 `lol_words/`，完整目录与开发入口见 [STRUCTURE.md](docs/STRUCTURE.md)。
 
 | 目录 | 职责 |
 |---|---|
@@ -107,11 +107,11 @@ python tools/check_browser_readonly.py
 
 真实 Windows 临时窗口的通用适配、置顶和返回检查已通过；独立无界面浏览器的官网 PC 入口与页面复用只读检查已通过。这些不能替代真实英雄联盟对局、实际学习软件和娱乐网站媒体播放验证。真实对局中全屏、无边框连续右键、死歌/大嘴/赛恩、跨局与下载确认行为，本轮均未实测。
 
-详见 [验证记录.md](验证记录.md)。日志只记录状态变化与必要诊断，不上传画面、卡片或浏览历史。请勿提交 `runtime/`、个人 `config.json` 或 `runtime.log`。
+日志只记录状态变化与必要诊断，不上传画面、卡片或浏览历史。请勿提交 `runtime/`、个人 `config.json` 或 `runtime.log`。
 
 ## 许可证与致谢
 
-本项目按 [MIT 许可证](LICENSE) 开源，依赖许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。创意参考 [CS2 Dead Scroll](https://github.com/xinghuoQ/cs2-dead-scroll)，本项目重新实现，未复制其代码。
+本项目按 [MIT 许可证](LICENSE) 开源，依赖许可见 [THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md)。创意参考 [CS2 Dead Scroll](https://github.com/xinghuoQ/cs2-dead-scroll)，本项目重新实现，未复制其代码。
 
 技术依据：[拳头本地对局接口](https://developer.riotgames.com/docs/lol#live-client-data-api)、[微软窗口接口](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos)、[浏览器调试协议](https://chromedevtools.github.io/devtools-protocol/)。
 

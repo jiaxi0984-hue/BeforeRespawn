@@ -74,7 +74,7 @@
 
 状态机、接口白名单、去重、配置和识别使用模拟客户端测试。Windows 控件、取消门控、重新确认后单次点击和本机文字识别使用本工具创建的替身窗口 / 合成文字图验证。
 
-本次检查时真实客户端未运行，未发送真实客户端写请求。**真实国服对局、真实赛后卡加载、跳过结算页面和头像回首页效果仍待实测。** 这也不构成运营方认可或免封承诺，参见 [第三方应用政策](https://support.riotgames.com/en-us/riot/events/third-party-applications)。
+已完成管理员权限下的真实客户端只读连接检查，未发送真实客户端写请求。**真实国服对局、真实赛后卡加载、跳过结算页面和头像回首页效果仍待实测。** 这也不构成运营方认可或免封承诺，参见 [第三方应用政策](https://support.riotgames.com/en-us/riot/events/third-party-applications)。
 
 ```powershell
 python tools/check_lobby_readonly.py

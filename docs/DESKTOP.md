@@ -11,7 +11,7 @@
 - 保持浅灰白与蓝绿色；窄窗口自动将目标面板移到流程下方，普通界面不新增内部事件入口。
 - 修复 Qt 数字输入框在无按钮样式下编辑区域宽度异常的问题，恢复可见数值、微调按钮与键盘输入。
 
-![游戏伴侣首页](docs/screenshots/01-home-real.png)
+![游戏伴侣首页](screenshots/01-home-real.png)
 
 ## 大厅助手更新
 
@@ -87,19 +87,19 @@ python -m lol_words / launchers/start.pyw
 
 | 页面 | 截图 |
 |---|---|
-| 正常首页，真实后端等待游戏 | [首页](docs/screenshots/01-home-real.png) |
-| 软件检测空结果（模拟） | [空结果](docs/screenshots/02-learning-empty-simulated.png) |
-| 官网网络异常（模拟） | [查询异常](docs/screenshots/03-search-error-simulated.png) |
-| 实际内置官网目录 | [学习目标](docs/screenshots/04-learning-catalog.png) |
-| 娱乐目标 | [娱乐目标](docs/screenshots/05-entertainment.png) |
-| 通用设置 | [设置](docs/screenshots/06-settings.png) |
-| 运行日志 | [日志](docs/screenshots/07-logs.png) |
-| 大厅助手默认配置 | [大厅助手](docs/screenshots/12-lobby-default.png) |
-| 真实权限差异诊断（只读） | [权限提示](docs/screenshots/14-lobby-permission-real.png) |
-| 赛后恢复状态（模拟） | [恢复路径](docs/screenshots/13-lobby-recovery-simulated.png) |
-| 接口与目标异常（模拟） | [首页异常](docs/screenshots/08-home-error-simulated.png) |
-| 死亡后延迟阶段（模拟） | [延迟阶段](docs/screenshots/10-death-delay-simulated.png) |
-| 学习期间与复活返回提示（模拟） | [学习阶段](docs/screenshots/11-learning-simulated.png) |
+| 正常首页，真实后端等待游戏 | [首页](screenshots/01-home-real.png) |
+| 软件检测空结果（模拟） | [空结果](screenshots/02-learning-empty-simulated.png) |
+| 官网网络异常（模拟） | [查询异常](screenshots/03-search-error-simulated.png) |
+| 实际内置官网目录 | [学习目标](screenshots/04-learning-catalog.png) |
+| 娱乐目标 | [娱乐目标](screenshots/05-entertainment.png) |
+| 通用设置 | [设置](screenshots/06-settings.png) |
+| 运行日志 | [日志](screenshots/07-logs.png) |
+| 大厅助手默认配置 | [大厅助手](screenshots/12-lobby-default.png) |
+| 真实权限差异诊断（只读） | [权限提示](screenshots/14-lobby-permission-real.png) |
+| 赛后恢复状态（模拟） | [恢复路径](screenshots/13-lobby-recovery-simulated.png) |
+| 接口与目标异常（模拟） | [首页异常](screenshots/08-home-error-simulated.png) |
+| 死亡后延迟阶段（模拟） | [延迟阶段](screenshots/10-death-delay-simulated.png) |
+| 学习期间与复活返回提示（模拟） | [学习阶段](screenshots/11-learning-simulated.png) |
 
 ## 验证与打包
 
@@ -118,4 +118,4 @@ python tools/package_app.py --with-deps --output ..\outputs\LOL-Words-desktop-ru
 
 运行包保留完整源码、测试、文档、许可与依赖，包括大厅功能所需的 `lol_words/lobby/lcu_api.py`。源码包保留相同项目文件，需安装依赖。包内 `BUILD-MANIFEST.json` 提供每个文件的摘要，旁附 `.sha256`；打包脚本校验 ZIP 完整性与全部文件摘要，不包含个人配置、运行日志、头像定位及浏览器资料。
 
-本轮结果与真实游戏待测清单见 [验证记录.md](验证记录.md)。Qt 环境依据：[官方入门](https://doc.qt.io/qtforpython-6/gettingstarted.html)、[Essentials 包](https://pypi.org/project/PySide6-Essentials/6.12.0/)。
+自动化测试与界面检查不能替代真实游戏验证；真实队友转让、自动接受和赛后异常恢复仍待对应场景实测。Qt 环境依据：[官方入门](https://doc.qt.io/qtforpython-6/gettingstarted.html)、[Essentials 包](https://pypi.org/project/PySide6-Essentials/6.12.0/)。

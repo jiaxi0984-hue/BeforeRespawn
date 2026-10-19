@@ -1,6 +1,6 @@
 # 源码目录与开发入口
 
-Python 源码集中在 `lol_words/` 包，按功能分组，根目录不再散放 `.py` 文件。启动脚本、配置示例、产品目录、说明文档保留在根目录。
+Python 源码集中在 `lol_words/` 包，按功能分组；项目说明集中在 `docs/`，根目录保留首页说明、许可证、启动脚本、配置示例和产品目录。
 
 ```text
 LOL-Words-zhandoushuang/
@@ -17,7 +17,8 @@ LOL-Words-zhandoushuang/
 ├─ tests/                 回归与入口集成测试
 ├─ tools/                 只读检查、替身窗口检查、截图和打包脚本
 ├─ assets/                界面图标
-├─ docs/                  截图等说明资料
+├─ docs/                  配置、界面、大厅、目录、源码结构及许可说明
+│  └─ screenshots/        当前界面截图
 ├─ licenses/              依赖许可证
 ├─ start.cmd              常规启动
 ├─ start-admin.cmd        用户主动管理员启动
