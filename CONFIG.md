@@ -73,3 +73,7 @@
 ## Qt 桌面版
 
 配置格式保持兼容；界面仅保存实际编辑过的通用字段，保留未编辑参数的小数精度与未知用户字段。无效配置阻止启动和保存，原文件不会被覆盖。界面与配置对应见 DESKTOP.md。
+
+## 大厅助手
+
+大厅选项与死亡学习设置独立。旧配置迁移时三个自动功能默认关闭，不改变既有行为；`lobby_recover_client` 随自动返回功能生效。各字段及范围见 [LOBBY.md](LOBBY.md)。`runtime/lobby-actions.json` 存储加盐动作摘要；`runtime/avatar-template.*` 为本机校准数据；`runtime/client-ocr/` 为识别临时图像，均不可上传或打包。

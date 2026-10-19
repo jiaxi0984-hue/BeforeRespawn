@@ -109,3 +109,5 @@ def run_monitor(host, config, stop, root, source_type, capture_type):
             host.publish_state(RuntimeState(target_name=runtime.primary.adapter.spec['name'],
                 target_state=TARGET_STATES.get(runtime.primary.state, '尚未检查'),
                 switch_result=host.last_return or '待执行任务已取消'))
+        if hasattr(host, 'on_monitor_exit'):
+            host.on_monitor_exit()

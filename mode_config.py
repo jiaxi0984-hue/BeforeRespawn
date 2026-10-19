@@ -30,7 +30,8 @@ def migrate_config(saved=None):
             process_path='', title_contains='', window_class='', pin=True))
     config['schema_version'] = 2
     validate_config(config)
-    return config
+    from lobby_config import migrate
+    return migrate(config)
 
 
 def valid_web_url(url):

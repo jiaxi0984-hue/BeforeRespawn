@@ -12,6 +12,8 @@ CODE = ['app.py', 'app.pyw', 'application_service.py', 'desktop_ui.py', 'ui_stat
         'runtime_bootstrap.py', 'legacy_app.py', 'core.py', 'study_flow.py', 'adapters.py', 'browser_target.py',
         'mode_config.py', 'mode_runtime.py', 'catalog.py', 'software_catalog.py', 'native.py', 'automation.py',
         'presentation.py', 'game_api.py', 'capture.py', 'discovery.py', 'penalty.py', 'state_store.py', 'official_download.py',
+        'lcu_api.py', 'lobby_config.py', 'lobby_flow.py', 'lobby_runtime.py', 'client_surface.py', 'client_accessibility.py',
+        'tools/ocr_client.ps1', 'LOBBY.md',
         'requirements.txt', 'requirements-capture.txt', 'start.cmd', 'install.cmd', 'config.example.json', 'learning_catalog.json',
         'README.md', 'CONFIG.md', 'CATALOG.md', 'DESKTOP.md', '验证记录.md', 'THIRD_PARTY_NOTICES.md', 'LICENSE', '.gitignore', '.gitattributes']
 
@@ -44,7 +46,7 @@ def main():
     with zipfile.ZipFile(temporary, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
         for path in files:
             relative = path.relative_to(ROOT).as_posix()
-            assert relative not in {'config.json', 'runtime-python.txt', 'runtime.log', 'lcu_api.py'}
+            assert relative not in {'config.json', 'runtime-python.txt', 'runtime.log'}
             assert not relative.startswith(('runtime/', '.git/', 'backups/'))
             raw = path.read_bytes()
             manifest['files'][relative] = dict(bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())

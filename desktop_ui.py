@@ -5,7 +5,7 @@ from pathlib import Path
 import queue
 import time
 import uuid
-from PySide6.QtCore import Qt, QTimer, QSize, QSortFilterProxyModel
+from PySide6.QtCore import Qt, QTimer, QSize, QSortFilterProxyModel, QRectF, QPointF
 from PySide6.QtGui import QColor, QFont, QIcon, QKeySequence, QPainter, QPalette, QPen, QPixmap, QStandardItem, QStandardItemModel, QShortcut
 from PySide6.QtWidgets import (QAbstractItemView, QAbstractSpinBox, QApplication, QButtonGroup, QCheckBox, QComboBox,
     QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog, QFormLayout, QFrame, QGroupBox,
@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QAbstractSpinBox, QApplication
     QTableView, QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget)
 from mode_config import selected_spec, validate_target, WEBSITES
 from ui_state import RuntimeState
+from lobby_flow import LobbyStatus
 
 
 STYLE = '''
@@ -140,6 +141,10 @@ def line_icon(index):
     elif index == 3:
         for y, x in [(6, 9), (12, 16), (18, 8)]:
             painter.drawLine(3, y, 21, y); painter.drawEllipse(x-2, y-2, 4, 4)
+    elif index == 5:
+        painter.drawRoundedRect(3, 6, 18, 13, 3, 3)
+        painter.drawLine(6, 12, 12, 12); painter.drawLine(9, 9, 9, 15)
+        painter.drawEllipse(15, 10, 2, 2); painter.drawEllipse(17, 13, 2, 2)
     else:
         painter.drawRoundedRect(5, 3, 14, 18, 2, 2)
         for y in [8, 12, 16]: painter.drawLine(8, y, 16, y)
@@ -247,6 +252,60 @@ class DownloadPrompt(QDialog):
     def closeEvent(self, event): self.finish(False); event.accept()
 
 
+class AvatarCanvas(QWidget):
+    def __init__(self, frame):
+        super().__init__();self.image=frame.image();self.start=None;self.selection=None
+        self.setMinimumSize(460,280);self.setMouseTracking(True)
+
+    def mapping(self):
+        scale=min(self.width()/self.image.width(),self.height()/self.image.height())
+        return scale,(self.width()-self.image.width()*scale)/2,(self.height()-self.image.height()*scale)/2
+
+    def point(self, position):
+        scale,x,y=self.mapping()
+        return QPointF(max(0,min(self.image.width(),(position.x()-x)/scale)),max(0,min(self.image.height(),(position.y()-y)/scale)))
+
+    def paintEvent(self, event):
+        painter=QPainter(self);scale,x,y=self.mapping()
+        painter.drawImage(QRectF(x,y,self.image.width()*scale,self.image.height()*scale),self.image)
+        if self.selection:
+            painter.setPen(QPen(QColor('#29b49a'),2))
+            rect=self.selection
+            painter.drawRect(QRectF(x+rect.x()*scale,y+rect.y()*scale,rect.width()*scale,rect.height()*scale))
+        painter.end()
+
+    def mousePressEvent(self, event):
+        if event.button()==Qt.MouseButton.LeftButton:self.start=self.point(event.position());self.selection=None
+
+    def mouseMoveEvent(self, event):
+        if self.start is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            self.selection=QRectF(self.start,self.point(event.position())).normalized();self.update()
+
+    def mouseReleaseEvent(self, event):
+        if self.start is not None:
+            self.selection=QRectF(self.start,self.point(event.position())).normalized();self.start=None;self.update()
+
+
+class AvatarDialog(QDialog):
+    def __init__(self, parent, service, frame):
+        super().__init__(parent);self.service,self.frame=service,frame
+        self.setWindowTitle('校准右上角头像');self.resize(940,620)
+        layout=QVBoxLayout(self)
+        layout.addWidget(label('框选右上角圆形头像的内部图案', 'heading'))
+        layout.addWidget(label('只保存选中头像的小图与相对位置，完整客户端画面不会保存或上传。换头像后需要重新校准。', 'muted'))
+        self.canvas=AvatarCanvas(frame);layout.addWidget(self.canvas,1)
+        self.error=label('', 'warning');self.error.hide();layout.addWidget(self.error)
+        layout.addLayout(hrow(button('取消',self.reject),None,button('保存头像定位',self.save,True)))
+
+    def save(self):
+        rect=self.canvas.selection
+        if rect is None:self.error.setText('请先拖动框选右上角头像。');self.error.show();return
+        try:
+            self.service.lobby.surface.save_avatar(self.frame,[rect.left(),rect.top(),rect.right(),rect.bottom()])
+            self.accept()
+        except (ValueError,OSError) as exc:self.error.setText(str(exc));self.error.show()
+
+
 class MainWindow(QMainWindow):
     def __init__(self, service, autostart=True):
         super().__init__()
@@ -307,17 +366,17 @@ class MainWindow(QMainWindow):
         self.navigation.setResizeMode(QListView.ResizeMode.Adjust); self.navigation.setFixedHeight(50)
         self.navigation.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.navigation.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        names = ['运行首页', '学习目标', '娱乐目标', '通用设置', '运行日志']
+        names = ['运行首页', '学习目标', '娱乐目标', '通用设置', '运行日志', '大厅助手']
         for index, name in enumerate(names):
             item = QListWidgetItem(line_icon(index), name); item.setSizeHint(QSize(142, 44)); self.navigation.addItem(item)
         self.navigation.setAccessibleName('主导航'); nav_layout.addWidget(self.navigation); body.addWidget(navigation_bar)
         self.stack = QStackedWidget(); body.addWidget(self.stack, 1)
-        self.home_page(); self.learning_page(); self.entertainment_page(); self.settings_page(); self.logs_page()
+        self.home_page(); self.learning_page(); self.entertainment_page(); self.settings_page(); self.logs_page(); self.lobby_page()
         self.navigation.currentRowChanged.connect(self.stack.setCurrentIndex); self.navigation.setCurrentRow(0)
         footer = QHBoxLayout(); footer.setContentsMargins(28, 5, 28, 9)
         footer.addWidget(label('活着认真操作，复活及时归队。', 'muted', wrap=False)); footer.addStretch()
-        footer.addWidget(label('Ctrl + Alt + F8 暂停  ·  Alt + 1–5 导航', 'muted', wrap=False)); body.addLayout(footer)
-        for i in range(5):
+        footer.addWidget(label('Ctrl + Alt + F8 暂停  ·  Alt + 1–6 导航', 'muted', wrap=False)); body.addLayout(footer)
+        for i in range(6):
             sc = QShortcut(QKeySequence(f'Alt+{i+1}'), self)
             sc.activated.connect(lambda i=i: self.navigation.setCurrentRow(i))
         self.copy_shortcut = QShortcut(QKeySequence.StandardKey.Copy, self.log_table)
@@ -376,6 +435,8 @@ class MainWindow(QMainWindow):
         recent_header = hrow(label('最近事件', 'heading'), None, button('查看全部', lambda: self.navigation.setCurrentRow(4)))
         layout.addLayout(recent_header)
         self.recent_label = label('尚无运行事件。', 'muted'); self.recent_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse); layout.addWidget(self.recent_label)
+        self.lobby_summary=label('大厅助手：三个功能均未开启。','muted',wrap=False)
+        layout.addLayout(hrow(self.lobby_summary,None,button('大厅助手',lambda:self.navigation.setCurrentRow(5))))
         layout.addStretch()
 
     def update_home_layout(self):
@@ -393,7 +454,8 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         if hasattr(self, 'home_grid'): self.update_home_layout()
         if hasattr(self, 'navigation'):
-            size = max(94, min(150, (self.width()-56)//5))
+            size = max(80, min(150, (self.width()-56)//self.navigation.count()))
+            self.navigation.setIconSize(QSize(18,18) if self.width()>=900 else QSize(0,0))
             for index in range(self.navigation.count()): self.navigation.item(index).setSizeHint(QSize(size, 44))
 
     def refresh_rules(self):
@@ -491,6 +553,81 @@ class MainWindow(QMainWindow):
         self.player.textEdited.connect(lambda _: self.settings_edited('player_id'))
         layout.addStretch()
 
+    def lobby_page(self):
+        _,layout=self.page('大厅助手','赛后返回、转让队长、接受对局；不自动选英雄，不自动开始匹配。')
+        self.lobby_dirty=False;self.lobby_state=LobbyStatus()
+        frame,inner=panel();layout.addWidget(frame)
+        self.lobby_connection=label('尚未检查客户端','heading')
+        self.lobby_phase=label('等待客户端','muted');self.lobby_action=label('大厅助手已关闭')
+        self.lobby_detail=label('首次使用请分别开启需要的功能。','muted')
+        inner.addWidget(self.lobby_connection);inner.addWidget(self.lobby_phase);inner.addWidget(self.lobby_action);inner.addWidget(self.lobby_detail)
+        self.lobby_read_button=button('读取当前房间（只读）',self.service.refresh_lobby)
+        self.avatar_button=button('定位右上角头像…',self.service.calibrate_avatar)
+        self.lobby_save_button=button('保存大厅设置',self.save_lobby_settings,True)
+        inner.addLayout(hrow(self.lobby_read_button,self.avatar_button,None,self.lobby_save_button))
+        options,content=panel();layout.addWidget(options)
+        self.auto_return=QCheckBox('对局结束后自动返回组队房间')
+        self.auto_promote=QCheckBox('本人是队长时，自动转让给可接任队友')
+        self.auto_accept=QCheckBox('自动接受匹配到的对局')
+        for control in [self.auto_return,self.auto_promote,self.auto_accept]:content.addWidget(control)
+        self.preferred_member=QComboBox();self.preferred_member.addItem('自动：当前列表首个可接任队友','')
+        content.addLayout(hrow(label('接任队友'),self.preferred_member))
+        content.addWidget(label('默认按客户端成员顺序选择，跳过本人、机器人与观战者。指定队友未出现时等待，不转给其他人。','muted'))
+        self.lobby_accept_delay=QDoubleSpinBox();self.lobby_accept_delay.setRange(0,10);self.lobby_accept_delay.setDecimals(1);self.lobby_accept_delay.setSuffix(' 秒')
+        self.lobby_return_delay=QDoubleSpinBox();self.lobby_return_delay.setRange(0,30);self.lobby_return_delay.setDecimals(1);self.lobby_return_delay.setSuffix(' 秒')
+        self.lobby_stuck=QDoubleSpinBox();self.lobby_stuck.setRange(10,180);self.lobby_stuck.setDecimals(0);self.lobby_stuck.setSuffix(' 秒')
+        self.lobby_rules_hint=label('','muted');content.addWidget(self.lobby_rules_hint)
+        self.lobby_advanced_toggle=QCheckBox('高级：调整等待时间与卡结算门槛');content.addWidget(self.lobby_advanced_toggle)
+        self.lobby_advanced=QWidget();form=QFormLayout(self.lobby_advanced);form.setVerticalSpacing(12);form.setContentsMargins(0,0,0,0)
+        for title,control in [('接受对局前等待',self.lobby_accept_delay),('赛后返回前等待',self.lobby_return_delay),('卡结算恢复门槛',self.lobby_stuck)]:form.addRow(title,control)
+        content.addWidget(self.lobby_advanced);self.lobby_advanced.hide();self.lobby_advanced_toggle.toggled.connect(self.lobby_advanced.setVisible)
+        self.client_recovery=QCheckBox('返回失败时启用赛后恢复：跳过结算 / 头像回首页');content.addWidget(self.client_recovery)
+        content.addWidget(label('只在已确认的赛后阶段且游戏进程退出后执行。头像路径只在卡结算超时后尝试一次，不强制退队、不修改客户端。识别不到头像时先定位，不按固定坐标点击。','muted'))
+        self.lobby_notice=label('三个自动功能默认关闭。保存后立即生效；全局暂停 / 退出会取消未执行动作。','notice');layout.addWidget(self.lobby_notice)
+        for control in [self.auto_return,self.auto_promote,self.auto_accept,self.client_recovery]:control.toggled.connect(self.lobby_edited)
+        for control in [self.lobby_accept_delay,self.lobby_return_delay,self.lobby_stuck]:control.valueChanged.connect(self.lobby_edited)
+        self.preferred_member.activated.connect(self.lobby_edited)
+        layout.addStretch()
+
+    def lobby_edited(self,*args):
+        self.lobby_dirty=True;self.lobby_save_button.setText('保存大厅设置 · 未保存')
+
+    def refresh_lobby_members(self,members):
+        preferred=self.preferred_member.currentData() if self.lobby_dirty else self.service.config['lobby_preferred_member']
+        self.preferred_member.blockSignals(True);self.preferred_member.clear();self.preferred_member.addItem('自动：当前列表首个可接任队友','')
+        for key,name,leader,eligible in members:
+            if eligible and not leader:self.preferred_member.addItem(name,key)
+        if preferred and self.preferred_member.findData(preferred)<0:self.preferred_member.addItem('指定队友（当前不在房间）',preferred)
+        self.preferred_member.setCurrentIndex(max(0,self.preferred_member.findData(preferred)))
+        self.preferred_member.blockSignals(False)
+
+    def refresh_lobby_config(self):
+        if self.lobby_dirty:return
+        config=self.service.config
+        self.lobby_rules_hint.setText(f"已保存参数：接受前 {config['lobby_accept_delay']:g} 秒；赛后返回前 {config['lobby_return_delay']:g} 秒；卡结算门槛 {config['lobby_stuck_seconds']:g} 秒。")
+        for control,key in [(self.auto_return,'lobby_auto_return'),(self.auto_promote,'lobby_auto_promote'),(self.auto_accept,'lobby_auto_accept'),(self.client_recovery,'lobby_recover_client')]:
+            control.blockSignals(True);control.setChecked(config[key]);control.blockSignals(False)
+        for control,key in [(self.lobby_accept_delay,'lobby_accept_delay'),(self.lobby_return_delay,'lobby_return_delay'),(self.lobby_stuck,'lobby_stuck_seconds')]:
+            control.blockSignals(True);control.setValue(config[key]);control.blockSignals(False)
+        self.refresh_lobby_members(self.lobby_state.members)
+
+    def save_lobby_settings(self):
+        values=dict(lobby_auto_return=self.auto_return.isChecked(),lobby_auto_promote=self.auto_promote.isChecked(),lobby_auto_accept=self.auto_accept.isChecked(),
+            lobby_recover_client=self.client_recovery.isChecked(),lobby_preferred_member=self.preferred_member.currentData() or '',
+            lobby_accept_delay=self.lobby_accept_delay.value(),lobby_return_delay=self.lobby_return_delay.value(),lobby_stuck_seconds=self.lobby_stuck.value())
+        if self.save_change(values):
+            self.lobby_dirty=False;self.lobby_save_button.setText('保存大厅设置')
+            self.refresh_lobby_config()
+            self.lobby_notice.setText('已保存，即时生效。旧设置下尚未执行的动作取消；已提交动作只回读确认，不连续重发。' if self.service.running else '已保存，继续监测后执行。')
+            self.append_log('大厅助手设置已保存；未加入英雄选择或自动开始匹配。')
+
+    def apply_lobby_state(self,value):
+        self.lobby_state=value
+        self.lobby_connection.setText(value.connection);self.lobby_phase.setText(value.phase)
+        self.lobby_action.setText(value.action);self.lobby_detail.setText(value.detail)
+        self.lobby_summary.setText('大厅助手：'+value.action.removeprefix('大厅助手'))
+        self.refresh_lobby_members(value.members)
+
     @staticmethod
     def setting_field(widget, hint):
         box = QWidget(); layout = QVBoxLayout(box); layout.setContentsMargins(0, 0, 0, 0); layout.setSpacing(5)
@@ -498,7 +635,7 @@ class MainWindow(QMainWindow):
 
     def logs_page(self):
         _, layout = self.page('运行日志', '只记录状态变化与必要诊断，不重复记录每次轮询。', scroll=False)
-        self.log_categories = QComboBox(); self.log_categories.addItems(['全部类别', '监测', '模式', '死亡', '等待', '目标', '窗口', '返回', '配置', '提示'])
+        self.log_categories = QComboBox(); self.log_categories.addItems(['全部类别', '监测', '大厅', '模式', '死亡', '等待', '目标', '窗口', '返回', '配置', '提示'])
         self.log_search = QLineEdit(); self.log_search.setPlaceholderText('筛选日志内容')
         layout.addLayout(hrow(self.log_categories, self.log_search, button('复制所选', self.copy_log)))
         self.log_model = QStandardItemModel(0, 3, self); self.log_model.setHorizontalHeaderLabels(['时间', '类别', '说明'])
@@ -538,6 +675,7 @@ class MainWindow(QMainWindow):
             self.display.blockSignals(True); self.display.setCurrentIndex(self.display.findData(config['game_display_mode'])); self.display.blockSignals(False)
             self.pin.blockSignals(True); self.pin.setChecked(config['persistent_target_topmost']); self.pin.blockSignals(False)
             self.player.setText(config['player_id'])
+        self.refresh_lobby_config()
 
     def show_notice(self, message, error=False):
         self.notice.setObjectName('warning' if error else 'notice'); self.notice.setText(message); self.notice.show()
@@ -689,6 +827,7 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def category(text):
+        if text.startswith('大厅助手'):return '大厅'
         for terms, category in [(['返回'], '返回'), (['模式', '旧目标'], '模式'), (['本人死亡已确认'], '死亡'), (['切出等待', '灰屏', '采样'], '等待'), (['置顶', '切换', '窗口状态'], '窗口'), (['目标', '主窗口', '软件'], '目标'), (['配置', '设置'], '配置'), (['监测', '对局', '接口'], '监测')]:
             if any(word in text for word in terms): return category
         return '提示'
@@ -727,7 +866,17 @@ class MainWindow(QMainWindow):
 
     def handle_job(self, key, status, result):
         busy, error = status == 'busy', status == 'error'
-        if key == 'scan':
+        if key=='lobby_read':
+            self.lobby_read_button.setEnabled(not busy);self.lobby_read_button.setText('正在读取…' if busy else '读取当前房间（只读）')
+            if error:self.lobby_notice.setText(result)
+            elif not busy:self.apply_lobby_state(result)
+        elif key=='avatar_frame':
+            self.avatar_button.setEnabled(not busy);self.avatar_button.setText('正在读取客户端画面…' if busy else '定位右上角头像…')
+            if error:self.lobby_notice.setText(result)
+            elif not busy:
+                dialog=AvatarDialog(self,self.service,result)
+                if dialog.exec()==QDialog.DialogCode.Accepted:self.lobby_notice.setText('头像定位已保存，仅在已确认的赛后卡加载场景中使用。')
+        elif key == 'scan':
             self.scan_button.setEnabled(not busy); self.scan_button.setText('正在检测…' if busy else '重新检测')
             if busy: self.scan_status.setText('正在读取安装登记、快捷方式与实际运行程序…')
             elif error:
@@ -763,6 +912,7 @@ class MainWindow(QMainWindow):
             except queue.Empty: break
             if kind == 'log': self.append_log(value)
             elif kind == 'state': self.apply_state(value)
+            elif kind == 'lobby_state': self.apply_lobby_state(value)
             elif kind == 'config': self.refresh_config()
             elif kind == 'selection':
                 self.target_label.setText(value); self.target_status.setText('正在检查新目标'); self.target_hint.hide()

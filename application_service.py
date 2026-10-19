@@ -17,10 +17,14 @@ from mode_config import migrate_config, validate_config, selected_spec, mode_key
 from monitoring import run_monitor, TARGET_STATES
 from penalty import DeathLedger
 from ui_state import RuntimeState
+from lobby_config import validate as validate_lobby
+from lobby_runtime import LobbyRuntime
+from lcu_api import LCUError
 
 
 def validate_settings(config):
     validate_config(config)
+    validate_lobby(config)
     for key, low, high in [('death_switch_delay', 0, 120), ('return_before_seconds', 0, 30),
                            ('gray_threshold', .5, .99), ('poll_seconds', .05, 5)]:
         value = config[key]
@@ -47,6 +51,7 @@ class ApplicationService:
         self.busy, self.futures = set(), set()
         self.jobs_lock = threading.Lock()
         self.worker = None
+        self.lobby_worker = None
         self.stop_event = threading.Event()
         self.stop_event.set()
         self.closing = False
@@ -72,10 +77,26 @@ class ApplicationService:
             self.config = migrate_config()
             self.report(self.config_error)
         self.publish_state(RuntimeState(target_name=selected_spec(self.config)['name']))
+        self.lobby = LobbyRuntime(self.windows,self.root,self.config_snapshot,self.report,
+                                  lambda value:self.events.put(('lobby_state',value)))
 
     @property
     def running(self):
-        return bool(self.worker and self.worker.is_alive())
+        return bool((self.worker and self.worker.is_alive()) or (self.lobby_worker and self.lobby_worker.is_alive()))
+
+    def config_snapshot(self):
+        with self.config_lock:return copy.deepcopy(self.config)
+
+    def refresh_lobby(self):
+        return self.submit('lobby_read', self.lobby.read_only)
+
+    def calibrate_avatar(self):
+        epoch=self.epoch
+        return self.submit('avatar_frame',lambda:self.lobby.calibrate(lambda:self.closing or self.epoch!=epoch))
+
+    def on_monitor_exit(self):
+        # 核心监测意外退出时，大厅线程也停止，避免界面已暂停却仍在接受对局。
+        self.stop_event.set()
 
     def publish_state(self, state):
         if state != self.last_state:
@@ -132,6 +153,7 @@ class ApplicationService:
 
     @staticmethod
     def friendly_error(key, exc):
+        if isinstance(exc,LCUError):return str(exc)
         if key == 'search':
             return '官网查询未完成，可能是网络连接或搜索响应异常。请重试，或使用内置目录。'
         if key == 'scan':
@@ -239,6 +261,8 @@ class ApplicationService:
         self.last_return = ''
         self.worker = threading.Thread(target=run_monitor, args=(self, copy.deepcopy(self.config), self.stop_event,
             self.root, GameData, SceneCapture), name='game-monitor', daemon=True)
+        self.lobby_worker = threading.Thread(target=self.lobby.run,args=(self.stop_event,),name='lobby-monitor',daemon=True)
+        self.lobby_worker.start()
         self.worker.start()
         self.report('自动监测已启动；目标首次需要时启动，手动关闭后不反复拉起。')
         return True
