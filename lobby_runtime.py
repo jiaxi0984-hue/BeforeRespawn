@@ -25,7 +25,7 @@ class LobbyRuntime:
 
     def connect(self, stop=lambda:False):
         connection = self.discovery.find(time.monotonic())
-        if not connection: raise LCUError(self.discovery.reason)
+        if not connection: raise LCUError(self.discovery.reason,needs_admin=self.discovery.needs_admin)
         if not self.client or self.client.key != connection.key:
             candidate = self.client_factory(connection)
             candidate.inspect(cancelled=stop)
@@ -36,15 +36,25 @@ class LobbyRuntime:
     def read_only(self):
         with self.lock:
             self.client=None  # 用户主动检查时重新校验能力，不沿用失败或旧版本缓存。
-            client = self.connect()
-            sample = client.snapshot()
-            lobby = parse_lobby(sample.lobby, sample.connection[1]) if sample.phase=='Lobby' else None
+            self.discovery.cached=None;self.discovery.next_query=0
+            try:
+                client = self.connect()
+                sample = client.snapshot()
+                lobby = parse_lobby(sample.lobby, sample.connection[1]) if sample.phase=='Lobby' else None
+            except LCUError as exc:
+                self.connection_error(exc)
+                raise
             members = tuple((m.key,m.name,m.leader,m.eligible and m.key!=lobby.local) for m in lobby.members) if lobby else ()
             value = LobbyStatus('客户端已连接', PHASE_NAMES.get(sample.phase,sample.phase), '只读检查完成',
                 '没有发送接受、转让或返回请求。', members, tuple(sorted(client.capabilities)))
             self.status(value)
             self.flow.last_status=None
             return value
+
+    def connection_error(self,exc):
+        self.status(LobbyStatus('客户端权限不匹配' if exc.needs_admin else '连接或状态暂不可用',
+            phase='尚未读取大厅阶段' if exc.needs_admin else '等待连接恢复',
+            action='需要管理员权限' if exc.needs_admin else '自动动作已暂停',detail=str(exc),needs_admin=exc.needs_admin))
 
     def calibrate(self,cancelled=lambda:False):
         with self.lock:
@@ -77,11 +87,11 @@ class LobbyRuntime:
                 except LCUError as exc:
                     self.flow.cancel()
                     message = str(exc)
-                    self.status(LobbyStatus('连接或状态暂不可用',action='自动动作已暂停',detail=message))
+                    self.connection_error(exc)
                     if message != self.last_error:
                         self.report('大厅助手：'+message); self.last_error=message
-                    if exc.status in {401,403}:
-                        self.client=None;self.discovery.cached=None
+                    # 超时、连接断开和认证变化后不能继续沿用旧候选。
+                    self.client=None;self.discovery.cached=None
                 except (OSError,ValueError,TypeError,KeyError,AttributeError):
                     self.flow.cancel()
                     message='大厅数据或本地动作记录无法校验；未执行新的自动操作。请检查客户端，或备份后修复 runtime/lobby-actions.json。'

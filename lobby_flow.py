@@ -23,6 +23,7 @@ class LobbyStatus:
     detail: str = '在大厅助手页面分别开启需要的功能。'
     members: tuple = field(default=(), repr=False)
     capabilities: tuple = ()
+    needs_admin: bool = False
 
 
 class ActionJournal:

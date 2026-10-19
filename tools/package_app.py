@@ -13,6 +13,7 @@ CODE = ['app.py', 'app.pyw', 'application_service.py', 'desktop_ui.py', 'ui_stat
         'mode_config.py', 'mode_runtime.py', 'catalog.py', 'software_catalog.py', 'native.py', 'automation.py',
         'presentation.py', 'game_api.py', 'capture.py', 'discovery.py', 'penalty.py', 'state_store.py', 'official_download.py',
         'lcu_api.py', 'lobby_config.py', 'lobby_flow.py', 'lobby_runtime.py', 'client_surface.py', 'client_accessibility.py',
+        'privileges.py', 'start-admin.cmd',
         'tools/ocr_client.ps1', 'LOBBY.md',
         'requirements.txt', 'requirements-capture.txt', 'start.cmd', 'install.cmd', 'config.example.json', 'learning_catalog.json',
         'README.md', 'CONFIG.md', 'CATALOG.md', 'DESKTOP.md', '验证记录.md', 'THIRD_PARTY_NOTICES.md', 'LICENSE', '.gitignore', '.gitattributes']

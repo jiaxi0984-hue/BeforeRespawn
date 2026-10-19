@@ -17,6 +17,8 @@
 
 新增第六页“大厅助手”，三个自动功能默认关闭，独立保存并即时生效；全局暂停与退出同时取消大厅任务。正常返回、跳过结算和右上头像回首页的识别依据与验证边界见 [LOBBY.md](LOBBY.md)。
 
+若客户端以管理员权限运行、工具无法取得连接参数，大厅页会显示权限差异及管理员重启按钮。此入口保留已保存配置，先清理旧任务，再通过 Windows 授权打开同目录的新窗口；新窗口先暂停、只读检查连接。也可运行 `start-admin.cmd`。取消授权不关闭原工具、不恢复自动操作。
+
 ## 使用方式
 
 1. 安装 Windows 10/11 64 位上的 **Python 3.14 64 位**。运行包附带项目依赖，但不附带 Python 解释器。
@@ -92,6 +94,7 @@ app.py / app.pyw                桌面入口与依赖加载
 | 通用设置 | [设置](docs/screenshots/06-settings.png) |
 | 运行日志 | [日志](docs/screenshots/07-logs.png) |
 | 大厅助手默认配置 | [大厅助手](docs/screenshots/12-lobby-default.png) |
+| 真实权限差异诊断（只读） | [权限提示](docs/screenshots/14-lobby-permission-real.png) |
 | 赛后恢复状态（模拟） | [恢复路径](docs/screenshots/13-lobby-recovery-simulated.png) |
 | 接口与目标异常（模拟） | [首页异常](docs/screenshots/08-home-error-simulated.png) |
 | 死亡后延迟阶段（模拟） | [延迟阶段](docs/screenshots/10-death-delay-simulated.png) |

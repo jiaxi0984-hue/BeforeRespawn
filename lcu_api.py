@@ -15,6 +15,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from game_api import NoRedirect
+from privileges import is_elevated, process_elevated
 
 PHASE = '/lol-gameflow/v1/gameflow-phase'
 SESSION = '/lol-gameflow/v1/session'
@@ -35,8 +36,9 @@ OPERATIONS = {
 
 
 class LCUError(Exception):
-    def __init__(self, reason='连接不可用', status=None, uncertain=False):
+    def __init__(self, reason='连接不可用', status=None, uncertain=False, needs_admin=False):
         self.status, self.uncertain = status, uncertain
+        self.needs_admin=needs_admin
         super().__init__(f'{reason}（HTTP {status}）' if status else reason)
 
 
@@ -80,6 +82,7 @@ class ClientDiscovery:
         self.cached = None
         self.next_query = 0
         self.reason = '等待客户端启动'
+        self.needs_admin=False
 
     def find(self, now):
         processes = [(pid, name) for pid, name in self.windows.processes()
@@ -89,12 +92,14 @@ class ClientDiscovery:
             self.cached = None
             self.reason = '等待客户端启动'
             self.next_query = 0
+            self.needs_admin=False
             return None
         if now < self.next_query and self.cached and self.cached.pid in pids:
             return self.cached
         if now < self.next_query:
             return None
         self.next_query = now + 3
+        self.needs_admin=False
         roots = []
         for pid, _ in processes:
             handle = self.windows.k.OpenProcess(0x1000, False, pid)
@@ -147,7 +152,10 @@ class ClientDiscovery:
         except (OSError, ValueError, TypeError, AttributeError, subprocess.TimeoutExpired):
             pass
         self.cached = None
-        self.reason = '客户端已运行，但连接参数不可读；请检查工具与客户端权限是否一致'
+        # 国服可能保留空 lockfile；此时普通进程不能读取管理员客户端的启动参数。
+        self.needs_admin=not is_elevated() and any(process_elevated(self.windows,pid) is True for pid,_ in processes)
+        self.reason = ('客户端以管理员权限运行，本工具权限较低，连接参数无法读取。请点击“以管理员权限重新启动”；新窗口先暂停并只读检查。'
+            if self.needs_admin else '客户端已运行，但连接参数暂不可读；请等待登录完成后点击“读取当前房间（只读）”。若仍失败，请检查客户端权限或重启客户端。')
         return None
 
 

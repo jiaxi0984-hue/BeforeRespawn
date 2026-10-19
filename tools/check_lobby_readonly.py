@@ -13,7 +13,7 @@ def main():
     discovery=ClientDiscovery(Windows())
     connection=discovery.find(time.monotonic())
     if not connection:
-        print(json.dumps(dict(status='unavailable',reason=discovery.reason,writes_sent=0,credentials_saved=False),ensure_ascii=False));return
+        print(json.dumps(dict(status='unavailable',reason=discovery.reason,needs_admin=discovery.needs_admin,writes_sent=0,credentials_saved=False),ensure_ascii=False));return
     client=LCUClient(connection)
     capabilities=sorted(client.inspect());snapshot=client.snapshot()
     print(json.dumps(dict(status='read_only_checked',phase=snapshot.phase,capabilities=capabilities,

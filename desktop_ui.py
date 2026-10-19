@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QAbstractSpinBox, QApplication
 from mode_config import selected_spec, validate_target, WEBSITES
 from ui_state import RuntimeState
 from lobby_flow import LobbyStatus
+from privileges import restart_elevated
 
 
 STYLE = '''
@@ -318,6 +319,8 @@ class MainWindow(QMainWindow):
         self.service = service
         self.state = RuntimeState()
         self.closing = False
+        self.admin_restart_in_progress=False
+        self.admin_restart_submitted=False
         self.hotkey_down = False
         self.detected, self.visible_apps, self.site_items = [], [], []
         self.search_name, self.search_kind = '', 'catalog'
@@ -565,6 +568,9 @@ class MainWindow(QMainWindow):
         self.avatar_button=button('定位右上角头像…',self.service.calibrate_avatar)
         self.lobby_save_button=button('保存大厅设置',self.save_lobby_settings,True)
         inner.addLayout(hrow(self.lobby_read_button,self.avatar_button,None,self.lobby_save_button))
+        self.admin_restart_button=button('以管理员权限重新启动',self.request_admin_restart)
+        self.admin_restart_button.setToolTip('先暂停并清理任务，再由 Windows 请求授权；新窗口保持暂停，只读检查大厅连接。')
+        inner.addWidget(self.admin_restart_button);self.admin_restart_button.hide()
         options,content=panel();layout.addWidget(options)
         self.auto_return=QCheckBox('对局结束后自动返回组队房间')
         self.auto_promote=QCheckBox('本人是队长时，自动转让给可接任队友')
@@ -627,6 +633,16 @@ class MainWindow(QMainWindow):
         self.lobby_action.setText(value.action);self.lobby_detail.setText(value.detail)
         self.lobby_summary.setText('大厅助手：'+value.action.removeprefix('大厅助手'))
         self.refresh_lobby_members(value.members)
+        self.admin_restart_button.setVisible(value.needs_admin or self.admin_restart_in_progress)
+
+    def request_admin_restart(self):
+        if self.admin_restart_in_progress or self.closing:return
+        if self.lobby_dirty or self.dirty_settings:
+            self.lobby_notice.setText('有尚未保存的设置，请先保存大厅设置与通用设置，再重新启动。');return
+        self.admin_restart_in_progress=True;self.admin_restart_submitted=False
+        self.admin_restart_button.setEnabled(False)
+        self.service.stop()
+        self.lobby_notice.setText('正在取消任务并恢复窗口。随后 Windows 会请求管理员授权；新窗口先暂停并只读检查连接。')
 
     @staticmethod
     def setting_field(widget, hint):
@@ -866,7 +882,14 @@ class MainWindow(QMainWindow):
 
     def handle_job(self, key, status, result):
         busy, error = status == 'busy', status == 'error'
-        if key=='lobby_read':
+        if key=='elevation':
+            if busy:self.admin_restart_button.setText('等待 Windows 授权…')
+            else:
+                self.admin_restart_in_progress=False;self.admin_restart_submitted=False
+                self.admin_restart_button.setEnabled(True);self.admin_restart_button.setText('以管理员权限重新启动')
+                self.lobby_notice.setText(result)
+                if not error:self.close()
+        elif key=='lobby_read':
             self.lobby_read_button.setEnabled(not busy);self.lobby_read_button.setText('正在读取…' if busy else '读取当前房间（只读）')
             if error:self.lobby_notice.setText(result)
             elif not busy:self.apply_lobby_state(result)
@@ -930,8 +953,11 @@ class MainWindow(QMainWindow):
         running = self.service.running
         stopping = running and self.service.stop_event.is_set()
         self.pause_button.setText('正在暂停…' if stopping else ('暂停监测' if running else '继续监测'))
-        self.pause_button.setEnabled(not stopping and not self.service.config_error and not self.closing)
-        if time.monotonic() - self.last_inspection > 2 and not self.closing:
+        self.pause_button.setEnabled(not stopping and not self.service.config_error and not self.closing and not self.admin_restart_in_progress)
+        if self.admin_restart_in_progress and not self.admin_restart_submitted and not self.closing and self.service.settled():
+            self.admin_restart_submitted=True
+            self.service.submit('elevation',lambda:restart_elevated(self.service.root))
+        if time.monotonic() - self.last_inspection > 2 and not self.closing and not self.admin_restart_in_progress:
             self.last_inspection = time.monotonic(); self.service.inspect_target()
         if self.closing and self.service.settled():
             self.timer.stop(); self.close()
