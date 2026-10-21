@@ -1,7 +1,6 @@
-"""独立客户端线程；网络与赛后识别不会阻塞死亡监测或 Qt 主线程。"""
+"""独立客户端线程；仅使用本地接口，不采集或点击客户端画面。"""
 import threading
 import time
-from lol_words.lobby.client_surface import ClientSurface
 from lol_words.lobby.lcu_api import ClientDiscovery, LCUClient, LCUError, parse_lobby
 from lol_words.lobby.lobby_config import enabled, settings
 from lol_words.lobby.lobby_flow import ActionJournal, LobbyFlow, LobbyStatus, PHASE_NAMES
@@ -12,11 +11,10 @@ class LobbyRuntime:
         self.native, self.config_getter, self.report, self.publish = native, config_getter, report, publish
         self.discovery, self.client_factory = ClientDiscovery(native), client_factory
         self.client = None
-        self.surface = ClientSurface(native, root)
         self.lock = threading.RLock()
         self.last_value = None
         self.last_error = None
-        self.flow = LobbyFlow(ActionJournal(root/'runtime/lobby-actions.json'), report, self.status, self.surface)
+        self.flow = LobbyFlow(ActionJournal(root/'runtime/lobby-actions.json'), report, self.status)
 
     def status(self, value):
         if self.last_value != value:
@@ -56,13 +54,6 @@ class LobbyRuntime:
             phase='尚未读取大厅阶段' if exc.needs_admin else '等待连接恢复',
             action='需要管理员权限' if exc.needs_admin else '自动动作已暂停',detail=str(exc),needs_admin=exc.needs_admin))
 
-    def calibrate(self,cancelled=lambda:False):
-        with self.lock:
-            client = self.connect(cancelled)
-            def guard():
-                return not cancelled() and not self.native.league_pid() and client.snapshot().phase in {'Lobby','None'}
-            return self.surface.calibration_frame(guard)
-
     def run(self, stop):
         disabled_reported=False
         try:
@@ -70,6 +61,7 @@ class LobbyRuntime:
                 config = self.config_getter()
                 if not enabled(config):
                     if not disabled_reported:
+                        self.flow.cancel()
                         self.status(LobbyStatus(action='大厅助手已关闭', detail='三个功能均未开启；不连接或操作客户端。'))
                     disabled_reported=True
                     stop.wait(.8); continue

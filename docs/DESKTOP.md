@@ -15,7 +15,7 @@
 
 ## 大厅助手更新
 
-新增第六页“大厅助手”，三个自动功能默认关闭，独立保存并即时生效；全局暂停与退出同时取消大厅任务。正常返回、跳过结算和右上头像回首页的识别依据与验证边界见 [LOBBY.md](LOBBY.md)。
+新增第六页“大厅助手”，三个自动功能默认关闭，独立保存并即时生效；全局暂停与退出同时取消大厅任务。正常返回、转让与接受的待实测状态及请求结果边界见 [LOBBY.md](LOBBY.md)。
 
 若客户端以管理员权限运行、工具无法取得连接参数，大厅页会显示权限差异及管理员重启按钮。此入口保留已保存配置，先清理旧任务，再通过 Windows 授权打开同目录的新窗口；新窗口先暂停、只读检查连接。也可运行 `start-admin.cmd`。取消授权不关闭原工具、不恢复自动操作。
 
@@ -95,8 +95,7 @@ python -m lol_words / launchers/start.pyw
 | 通用设置 | [设置](screenshots/06-settings.png) |
 | 运行日志 | [日志](screenshots/07-logs.png) |
 | 大厅助手默认配置 | [大厅助手](screenshots/12-lobby-default.png) |
-| 真实权限差异诊断（只读） | [权限提示](screenshots/14-lobby-permission-real.png) |
-| 赛后恢复状态（模拟） | [恢复路径](screenshots/13-lobby-recovery-simulated.png) |
+| 大厅请求被拒绝（模拟） | [失败提示](screenshots/13-lobby-error-simulated.png) |
 | 接口与目标异常（模拟） | [首页异常](screenshots/08-home-error-simulated.png) |
 | 死亡后延迟阶段（模拟） | [延迟阶段](screenshots/10-death-delay-simulated.png) |
 | 学习期间与复活返回提示（模拟） | [学习阶段](screenshots/11-learning-simulated.png) |
@@ -118,4 +117,4 @@ python tools/package_app.py --with-deps --output ..\outputs\LOL-Words-desktop-ru
 
 运行包保留完整源码、测试、文档、许可与依赖，包括大厅功能所需的 `lol_words/lobby/lcu_api.py`。源码包保留相同项目文件，需安装依赖。包内 `BUILD-MANIFEST.json` 提供每个文件的摘要，旁附 `.sha256`；打包脚本校验 ZIP 完整性与全部文件摘要，不包含个人配置、运行日志、头像定位及浏览器资料。
 
-自动化测试与界面检查不能替代真实游戏验证；真实队友转让、自动接受和赛后异常恢复仍待对应场景实测。Qt 环境依据：[官方入门](https://doc.qt.io/qtforpython-6/gettingstarted.html)、[Essentials 包](https://pypi.org/project/PySide6-Essentials/6.12.0/)。
+自动化测试与界面检查不能替代真实游戏验证；真实队友转让、自动接受和正常赛后返回仍待对应场景实测。Qt 环境依据：[官方入门](https://doc.qt.io/qtforpython-6/gettingstarted.html)、[Essentials 包](https://pypi.org/project/PySide6-Essentials/6.12.0/)。

@@ -2,21 +2,21 @@
 import math
 
 DEFAULTS = dict(lobby_auto_return=False, lobby_auto_promote=False, lobby_auto_accept=False,
-    lobby_accept_delay=1.0, lobby_return_delay=3.0, lobby_stuck_seconds=30.0,
-    lobby_preferred_member='', lobby_recover_client=True)
+    lobby_accept_delay=1.0, lobby_return_delay=3.0, lobby_preferred_member='')
 
 
 def migrate(config):
+    for key in ('lobby_stuck_seconds','lobby_recover_client'):config.pop(key,None)
     for key, value in DEFAULTS.items():
         config.setdefault(key, value)
     return config
 
 
 def validate(config):
-    for key in ['lobby_auto_return', 'lobby_auto_promote', 'lobby_auto_accept', 'lobby_recover_client']:
+    for key in ['lobby_auto_return', 'lobby_auto_promote', 'lobby_auto_accept']:
         if type(config[key]) is not bool:
             raise ValueError('大厅助手开关必须为布尔值')
-    for key, low, high in [('lobby_accept_delay', 0, 10), ('lobby_return_delay', 0, 30), ('lobby_stuck_seconds', 10, 180)]:
+    for key, low, high in [('lobby_accept_delay', 0, 10), ('lobby_return_delay', 0, 30)]:
         value = config[key]
         if type(value) not in (int, float) or not math.isfinite(value) or not low <= value <= high:
             raise ValueError(f'大厅助手时间超出范围：{key}，允许 {low}–{high} 秒')

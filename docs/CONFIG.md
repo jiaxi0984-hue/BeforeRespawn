@@ -76,4 +76,4 @@
 
 ## 大厅助手
 
-大厅选项与死亡学习设置独立。旧配置迁移时三个自动功能默认关闭，不改变既有行为；`lobby_recover_client` 随自动返回功能生效。各字段及范围见 [LOBBY.md](LOBBY.md)。`runtime/lobby-actions.json` 存储加盐动作摘要；`runtime/avatar-template.*` 为本机校准数据；`runtime/client-ocr/` 为识别临时图像，均不可上传或打包。
+大厅选项与死亡学习设置独立，三项基本功能仍待真实游戏验证；默认示例均关闭，已有个人配置保留原开关。图像恢复功能及其两个旧字段已退役，校准数据不再读取。各字段、权限要求与验证状态见 [LOBBY.md](LOBBY.md)。`runtime/lobby-actions.json` 存储加盐动作摘要，不应上传或打包。

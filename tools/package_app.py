@@ -8,7 +8,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-CODE = ['launchers/start.pyw', 'start-admin.cmd', 'lol_words/lobby/ocr_client.ps1',
+CODE = ['launchers/start.pyw', 'start-admin.cmd',
         'requirements.txt', 'requirements-capture.txt', 'start.cmd', 'install.cmd', 'config.example.json', 'learning_catalog.json',
         'README.md', 'LICENSE', '.gitignore', '.gitattributes']
 

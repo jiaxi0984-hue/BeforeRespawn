@@ -33,8 +33,3 @@ class PackageEntryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=ROOT/'tests',prefix='启动 空格') as folder:
             output=self.run_python(str(ROOT/'launchers/start.pyw'),'--check',cwd=folder)
         self.assertIn('未启动监测、目标或下载',output)
-
-    def test_accessibility_worker_still_returns_json_for_invalid_window(self):
-        output=self.run_python('-m','lol_words.lobby.client_accessibility',
-            input=json.dumps(dict(hwnd=0,pid=0,created=0,path=''))+'\n')
-        self.assertEqual(json.loads(output)['items'],[])

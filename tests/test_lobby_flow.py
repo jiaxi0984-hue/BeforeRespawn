@@ -11,7 +11,6 @@ from lol_words.lobby.lcu_api import ClientSnapshot,Connection,LCUClient,LCUError
 from lol_words.lobby.lobby_flow import ActionJournal,LobbyFlow
 from lol_words.lobby.lobby_config import settings,validate
 from lol_words.modes.mode_config import migrate_config
-from lol_words.lobby.client_surface import Evidence
 
 
 ACCOUNT='puuid:myself0001'
@@ -47,23 +46,12 @@ class Client:
         if self.error:raise self.error
 
 
-class Surface:
-    def __init__(self):self.evidence=Evidence();self.actions=[];self.focus=[];self.during=None
-    def observe(self,guard,activate=False):
-        self.focus.append(activate)
-        if self.during:self.during()
-        return self.evidence if guard() else Evidence(reason='已取消')
-    def act(self,kind,evidence,guard):
-        if not guard():return False
-        self.actions.append(kind);return True
-
-
 class FlowTests(unittest.TestCase):
     def setUp(self):
         self.area=tempfile.TemporaryDirectory(dir=Path(__file__).parent)
         self.root=Path(self.area.name);self.journal=ActionJournal(self.root/'actions.json')
-        self.logs=[];self.states=[];self.surface=Surface();self.client=Client()
-        self.flow=LobbyFlow(self.journal,self.logs.append,self.states.append,self.surface)
+        self.logs=[];self.states=[];self.client=Client()
+        self.flow=LobbyFlow(self.journal,self.logs.append,self.states.append)
         self.config=migrate_config();self.config.update(lobby_auto_return=True,lobby_return_delay=0)
         self.stop=False
     def tearDown(self):self.area.cleanup()
@@ -78,6 +66,11 @@ class FlowTests(unittest.TestCase):
         self.assertFalse(any('已确认返回' in text for text in self.logs))
         self.step(3,'Lobby');self.assertTrue(any('已确认返回组队房间' in text for text in self.logs))
 
+    def test_normal_return_waits_for_end_of_game_instead_of_submitting_during_loading(self):
+        for t,phase in [(0,'WaitingForStats'),(4,'WaitingForStats'),(8,'PreEndOfGame')]:self.step(t,phase)
+        self.assertEqual(self.operations(),[])
+        self.step(10,'EndOfGame');self.assertEqual(self.operations(),['return'])
+
     def test_return_delay_and_repeated_poll_do_not_create_duplicate_requests(self):
         self.config['lobby_return_delay']=5
         for t in range(12):self.step(t)
@@ -87,12 +80,12 @@ class FlowTests(unittest.TestCase):
         self.config.update(lobby_auto_accept=True,lobby_auto_promote=True)
         for phase in ['InProgress','GameStart','Reconnect','ChampSelect']:
             for t in [0,10,60]:self.step(t,phase)
-        self.assertEqual(self.operations(),[]);self.assertEqual(self.surface.actions,[])
+        self.assertEqual(self.operations(),[])
 
     def test_existing_game_process_blocks_postgame_actions(self):
         current=sample();self.client.latest=current
         for t in [0,5,40]:self.flow.step(self.client,current,self.config,t,True)
-        self.assertEqual(self.operations(),[]);self.assertEqual(self.surface.focus,[])
+        self.assertEqual(self.operations(),[])
 
     def test_new_game_process_between_snapshot_and_action_blocks_write(self):
         self.step(0)
@@ -102,7 +95,7 @@ class FlowTests(unittest.TestCase):
 
     def test_pause_before_action_cancels_everything(self):
         self.step(0);self.stop=True;self.step(40)
-        self.assertEqual(self.operations(),[]);self.assertEqual(self.surface.actions,[])
+        self.assertEqual(self.operations(),[])
 
     def test_phase_changes_during_final_read_prevent_stale_return(self):
         self.step(0);expected=sample();self.client.latest=sample('ChampSelect',game_id=101)
@@ -113,6 +106,26 @@ class FlowTests(unittest.TestCase):
         self.client.error=LCUError('超时',uncertain=True)
         for t in [0,2,3,4]:self.step(t)
         self.assertEqual(self.operations(),['return']);self.assertTrue(any('不反复提交' in text for text in self.logs))
+
+    def test_rejected_return_is_reported_as_failure_and_not_overwritten_by_polling(self):
+        self.client.error=LCUError('客户端请求未完成',403)
+        self.step(0);self.step(2)
+        self.assertIn('被拒绝',self.states[-1].action)
+        self.assertIn('403',self.states[-1].detail)
+        self.step(3)
+        self.assertIn('被拒绝',self.states[-1].action)
+        self.assertEqual(self.operations(),['return'])
+
+    def test_manual_lobby_transition_after_rejection_is_not_reported_as_auto_success(self):
+        self.client.error=LCUError('客户端请求未完成',403)
+        self.step(0);self.step(2);self.step(3,'Lobby')
+        self.assertFalse(any('已确认返回组队房间' in text for text in self.logs))
+
+    def test_timeout_remains_uncertain_until_state_is_confirmed(self):
+        self.client.error=LCUError('超时',uncertain=True)
+        self.step(0);self.step(2);self.step(3)
+        self.assertIn('不确定',self.states[-1].action)
+        self.assertEqual(self.operations(),['return'])
 
     def test_restart_in_same_match_does_not_repeat_return(self):
         self.step(0);self.step(2)
@@ -131,56 +144,27 @@ class FlowTests(unittest.TestCase):
         self.step(3,game_id=100);self.step(6,game_id=100)
         self.assertEqual(self.operations(),['return'])
 
-    def test_skip_stats_is_only_requested_after_visible_skip_evidence(self):
-        self.step(0,'PreEndOfGame');self.step(2,'PreEndOfGame');self.step(5,'PreEndOfGame')
-        self.assertNotIn('skip_stats',self.operations())
-        self.surface.evidence=Evidence(skip={'source':'uia'})
-        self.step(8,'PreEndOfGame');self.step(11,'PreEndOfGame')
-        self.assertEqual(self.operations().count('skip_stats'),1)
-
-    def test_visible_skip_uses_button_if_endpoint_not_confirmed(self):
-        self.client.capabilities.discard('skip_stats');self.surface.evidence=Evidence(skip={'source':'ocr'})
-        self.step(0,'WaitingForStats');self.step(2,'WaitingForStats');self.step(5,'WaitingForStats');self.step(8,'WaitingForStats')
-        self.assertEqual(self.surface.actions,['skip']);self.assertNotIn('skip_stats',self.operations())
-
-    def test_after_skip_phase_change_allows_one_normal_return_in_new_stage(self):
-        self.surface.evidence=Evidence(skip={'source':'uia'})
-        self.step(0,'WaitingForStats');self.step(2,'WaitingForStats');self.step(5,'WaitingForStats');self.step(6,'EndOfGame');self.step(7,'EndOfGame')
-        self.assertEqual(self.operations(),['return','return']);self.assertEqual(self.surface.actions,['skip'])
-
-    def test_waiting_for_stats_does_not_use_pre_end_sequence_endpoint(self):
-        self.surface.evidence=Evidence(skip={'source':'uia'})
-        self.step(0,'WaitingForStats');self.step(2,'WaitingForStats');self.step(5,'WaitingForStats')
-        self.assertNotIn('skip_stats',self.operations());self.assertEqual(self.surface.actions,['skip'])
-
-    def test_stuck_avatar_path_waits_and_clicks_at_most_once(self):
-        self.surface.evidence=Evidence(avatar={'source':'template'})
-        for t in [0,2,5,10,29]:self.step(t)
-        self.assertEqual(self.surface.actions,[])
-        for t in [32,36,40]:self.step(t)
-        self.assertEqual(self.surface.actions,['avatar'])
-        self.assertEqual(sum(self.surface.focus),1)
-
-    def test_missing_or_ambiguous_avatar_never_causes_fixed_coordinate_click(self):
-        self.surface.evidence=Evidence(reason='无法唯一识别')
-        for t in [0,2,35,40]:self.step(t)
-        self.assertEqual(self.surface.actions,[])
-        self.assertEqual(self.states[-1].detail,'无法唯一识别')
-
-    def test_pause_during_recognition_prevents_click(self):
-        self.surface.evidence=Evidence(avatar={'source':'template'})
-        self.step(0);self.step(2);self.surface.during=lambda:setattr(self,'stop',True)
-        self.step(35);self.assertEqual(self.surface.actions,[])
-
-    def test_disabling_recovery_keeps_normal_return_only(self):
-        self.config['lobby_recover_client']=False;self.surface.evidence=Evidence(avatar={})
-        for t in [0,2,40]:self.step(t)
-        self.assertEqual(self.operations(),['return']);self.assertEqual(self.surface.focus,[])
 
     def test_auto_accept_waits_then_submits_only_once(self):
         self.config.update(lobby_auto_accept=True,lobby_accept_delay=2)
         for t in [0,1,2,3,4]:self.step(t,'ReadyCheck')
         self.assertEqual(self.operations(),['accept'])
+
+    def test_rejected_accept_is_not_reported_as_waiting_for_confirmation(self):
+        self.config.update(lobby_auto_accept=True,lobby_accept_delay=0)
+        self.client.error=LCUError('客户端请求未完成',400)
+        self.step(0,'ReadyCheck');self.step(2,'ReadyCheck')
+        self.assertIn('被拒绝',self.states[-1].action)
+        self.assertEqual(self.operations(),['accept'])
+
+    def test_rejected_promotion_is_not_confirmed_after_manual_leader_change(self):
+        self.config['lobby_auto_promote']=True
+        self.client.error=LCUError('客户端请求未完成',403)
+        self.step(0,'Lobby');self.step(2,'Lobby');self.step(3,'Lobby')
+        self.assertIn('被拒绝',self.states[-1].action)
+        self.step(4,'Lobby',lobby=lobby(False))
+        self.assertFalse(any('已回读确认' in text for text in self.logs))
+        self.assertEqual(self.operations(),['promote_v3'])
 
     def test_manual_decline_or_already_accepted_are_not_overridden(self):
         self.config['lobby_auto_accept']=True
@@ -267,8 +251,14 @@ class ProtocolTests(unittest.TestCase):
         self.assertFalse(any(config[k] for k in ['lobby_auto_return','lobby_auto_accept','lobby_auto_promote']))
         validate(config)
 
+    def test_old_image_recovery_settings_are_retired_without_losing_game_parameters(self):
+        config=migrate_config({'death_switch_delay':5.25,'lobby_recover_client':True,'lobby_stuck_seconds':1,'custom_value':7})
+        self.assertNotIn('lobby_recover_client',config);self.assertNotIn('lobby_stuck_seconds',config)
+        self.assertEqual(config['death_switch_delay'],5.25);self.assertEqual(config['custom_value'],7)
+        validate(config)
+
     def test_invalid_lobby_options_are_rejected(self):
-        for key,value in [('lobby_auto_accept','yes'),('lobby_stuck_seconds',1),('lobby_accept_delay',float('nan')),('lobby_return_delay',31),('lobby_preferred_member',False)]:
+        for key,value in [('lobby_auto_accept','yes'),('lobby_accept_delay',11),('lobby_accept_delay',float('nan')),('lobby_return_delay',31),('lobby_preferred_member',False)]:
             config=migrate_config();config[key]=value
             with self.subTest(key=key),self.assertRaises(ValueError):validate(config)
 
@@ -296,16 +286,16 @@ class ProtocolTests(unittest.TestCase):
 
     def test_client_refuses_nonlocal_routes_and_hero_or_match_start_operations(self):
         client=LCUClient(Connection(10,12345,'secret'))
-        for path in ['https://example.org/','/lol-champ-select/v1/session/actions/1','/lol-lobby/v2/lobby/matchmaking/search']:
+        for path in ['https://example.org/','/lol-champ-select/v1/session/actions/1','/lol-lobby/v2/lobby/matchmaking/search','/lol-pre-end-of-game/v1/skip-pre-end-of-game']:
             with self.subTest(path=path),self.assertRaises(LCUError):client.request('POST',path)
 
     def test_capability_probe_checks_method_route_and_argument_contract(self):
         client=LCUClient(Connection(10,12345,'secret'))
-        defs={name:dict(url=url,http_method='POST',arguments=[] if op in {'return','accept','skip_stats'} else [{'puuid' if op=='promote_v3' else 'summonerId':{}}]) for op,(name,url) in OPERATIONS.items()}
+        defs={name:dict(url=url,http_method='POST',arguments=[] if op in {'return','accept'} else [{'puuid' if op=='promote_v3' else 'summonerId':{}}]) for op,(name,url) in OPERATIONS.items()}
         client.request=lambda method,path,**kw:{'functions':{name:'' for name in defs}} if path=='/help' else {path.split('=')[1]:defs[path.split('=')[1]]}
         self.assertEqual(client.inspect(),set(OPERATIONS))
-        defs[OPERATIONS['skip_stats'][0]]['http_method']='DELETE'
-        self.assertNotIn('skip_stats',client.inspect())
+        defs[OPERATIONS['accept'][0]]['http_method']='DELETE'
+        self.assertNotIn('accept',client.inspect())
 
     def test_unconfirmed_operations_do_not_send_requests(self):
         client=LCUClient(Connection(10,12345,'secret'));client.request=Mock()

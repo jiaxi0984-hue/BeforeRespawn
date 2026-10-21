@@ -22,8 +22,6 @@ SESSION = '/lol-gameflow/v1/session'
 LOBBY = '/lol-lobby/v2/lobby'
 READY = '/lol-matchmaking/v1/ready-check'
 SELF = '/lol-summoner/v1/current-summoner'
-SEQUENCE = '/lol-pre-end-of-game/v1/currentSequenceEvent'
-BALLOT = '/lol-honor-v2/v1/ballot'
 PLAY_AGAIN = '/lol-lobby/v2/play-again'
 ACCEPT = '/lol-matchmaking/v1/ready-check/accept'
 OPERATIONS = {
@@ -31,7 +29,6 @@ OPERATIONS = {
     'accept': ('PostLolMatchmakingV1ReadyCheckAccept', ACCEPT),
     'promote_v3': ('PostLolLobbyV3LobbyMembersByPuuidPromote', '/lol-lobby/v3/lobby/members/{puuid}/promote'),
     'promote_v2': ('PostLolLobbyV2LobbyMembersBySummonerIdPromote', '/lol-lobby/v2/lobby/members/{summonerId}/promote'),
-    'skip_stats': ('PostLolPreEndOfGameV1SkipPreEndOfGame', '/lol-pre-end-of-game/v1/skip-pre-end-of-game'),
 }
 
 
@@ -171,9 +168,9 @@ class LCUClient:
         self.authorization = 'Basic ' + base64.b64encode(('riot:' + connection.token).encode()).decode()
 
     def request(self, method, path, timeout=0.7):
-        reads = {PHASE, SESSION, LOBBY, READY, SELF, SEQUENCE, BALLOT, '/help'}
+        reads = {PHASE, SESSION, LOBBY, READY, SELF, '/help'}
         help_route = path.startswith('/help?target=') and path.split('=', 1)[1] in {item[0] for item in OPERATIONS.values()}
-        writes = path in {PLAY_AGAIN, ACCEPT, OPERATIONS['skip_stats'][1]} or bool(re.fullmatch(r'/lol-lobby/v[23]/lobby/members/[A-Za-z0-9_-]+/promote', path))
+        writes = path in {PLAY_AGAIN, ACCEPT} or bool(re.fullmatch(r'/lol-lobby/v[23]/lobby/members/[A-Za-z0-9_-]+/promote', path))
         if (method != 'GET' or (path not in reads and not help_route)) and (method != 'POST' or not writes):
             raise LCUError('请求不在大厅自动化允许列表中')
         request = urllib.request.Request(f'https://127.0.0.1:{self.connection.port}' + path,
@@ -210,7 +207,7 @@ class LCUClient:
             definition = self.request('GET', '/help?target=' + function, timeout=2)
             definition = definition.get(function, {}) if isinstance(definition, dict) else {}
             arguments = definition.get('arguments')
-            expected = [] if name in {'return', 'accept', 'skip_stats'} else ['puuid' if name == 'promote_v3' else 'summonerId']
+            expected = [] if name in {'return', 'accept'} else ['puuid' if name == 'promote_v3' else 'summonerId']
             if (definition.get('url') == route and definition.get('http_method') == 'POST'
                     and isinstance(arguments, list) and [next(iter(arg), '') for arg in arguments] == expected):
                 self.capabilities.add(name)
@@ -229,13 +226,11 @@ class LCUClient:
         session = self.optional(SESSION) if phase in {'ReadyCheck', 'InProgress', 'WaitingForStats', 'PreEndOfGame', 'EndOfGame'} else None
         lobby = self.optional(LOBBY) if phase == 'Lobby' else None
         ready = self.optional(READY) if phase == 'ReadyCheck' else None
-        sequence = self.optional(SEQUENCE) if phase == 'PreEndOfGame' else None
-        ballot = self.optional(BALLOT) if phase == 'EndOfGame' else None
-        if any(value is not None and not isinstance(value,dict) for value in [session,lobby,ready,sequence,ballot]):
+        if any(value is not None and not isinstance(value,dict) for value in [session,lobby,ready]):
             raise LCUError('客户端状态格式不受支持，暂停操作')
         if self.request('GET', PHASE) != phase:
             raise LCUError('流程正在变化，重新读取状态')
-        return ClientSnapshot((self.key, account), phase, session, lobby, ready, sequence, ballot)
+        return ClientSnapshot((self.key, account), phase, session, lobby, ready)
 
     def write(self, operation, member=None):
         if operation not in self.capabilities:
@@ -329,8 +324,6 @@ class ClientSnapshot:
     session: dict | None = field(default=None, repr=False)
     lobby: dict | None = field(default=None, repr=False)
     ready: dict | None = field(default=None, repr=False)
-    sequence: dict | None = field(default=None, repr=False)
-    ballot: dict | None = field(default=None, repr=False)
 
     @property
     def game_id(self):

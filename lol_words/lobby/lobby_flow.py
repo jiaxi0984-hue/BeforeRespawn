@@ -1,4 +1,4 @@
-"""大厅状态机：接受、转让、正常返回与两条赛后恢复路径。"""
+"""大厅基本状态机：接受、转让与正常返回；仅回读确认实际结果。"""
 from dataclasses import dataclass, field
 import hashlib
 import json
@@ -24,6 +24,12 @@ class LobbyStatus:
     members: tuple = field(default=(), repr=False)
     capabilities: tuple = ()
     needs_admin: bool = False
+
+
+@dataclass(frozen=True)
+class RequestResult:
+    kind: str
+    reason: str = ''
 
 
 class ActionJournal:
@@ -108,17 +114,14 @@ class ActionJournal:
 
 
 class LobbyFlow:
-    def __init__(self, journal, report, publish, surface=None):
+    def __init__(self, journal, report, publish):
         self.journal, self.report, self.publish = journal, report, publish
-        self.surface = surface
         self.last_log = None
         self.phase = self.identity = None
-        self.phase_since = self.post_since = self.absent_since = None
+        self.phase_since = self.absent_since = None
         self.pending = {}
-        self.next_surface = 0
+        self.results = {}
         self.last_status = None
-        self.ui_focused = False
-        self.post_game = None
 
     def log(self, text):
         if text != self.last_log:
@@ -134,11 +137,8 @@ class LobbyFlow:
 
     def cancel(self):
         self.phase = self.identity = None
-        self.phase_since = self.post_since = self.absent_since = None
+        self.phase_since = self.absent_since = None
         self.pending.clear()
-        self.next_surface = 0
-        self.ui_focused = False
-        self.post_game = None
 
     @staticmethod
     def current(fresh, expected):
@@ -157,12 +157,6 @@ class LobbyFlow:
             self.absent_since = now
         if sample.phase != self.phase:
             self.phase, self.phase_since = sample.phase, now
-        if sample.phase in POST_MATCH:
-            if self.post_since is None or (sample.game_id and self.post_game is not None and self.post_game!=sample.game_id):
-                self.post_since = now;self.ui_focused=False;self.post_game=sample.game_id
-            elif sample.game_id and self.post_game is None:self.post_game=sample.game_id
-        else:
-            self.post_since = None;self.ui_focused=False;self.post_game=None
         lobby = parse_lobby(sample.lobby, sample.connection[1]) if sample.phase == 'Lobby' else None
         episode = self.journal.observe(sample, lobby)
         members = tuple((m.key, m.name, m.leader, m.eligible and m.key!=lobby.local) for m in lobby.members) if lobby else ()
@@ -175,37 +169,52 @@ class LobbyFlow:
 
         def write(operation, scope, predicate=lambda s:True, member=None):
             if operation not in caps:
-                self.log('当前客户端未确认支持此操作，等待版本兼容或手动处理。')
-                return False
+                return RequestResult('not_sent','当前客户端未确认支持此操作，请手动处理。')
             canonical='promote' if operation.startswith('promote') else operation
-            if self.journal.has_claim(scope,canonical):return False
+            key=json.dumps([scope,canonical],sort_keys=True)
+            if key in self.results:return self.results[key]
+            if self.journal.has_claim(scope,canonical):
+                return RequestResult('unknown','本周期已有尝试记录，结果未知；不自动重复提交。')
             if not fresh(predicate) or stopped():
-                self.log('执行前客户端阶段或成员状态已变化，本次动作取消。')
-                return False
-            if not self.journal.claim(scope, canonical): return False
-            if stopped(): return False
-            self.pending[operation] = (scope, now)
+                return RequestResult('not_sent','执行前客户端阶段或成员状态已变化，本次动作取消。')
+            if not self.journal.claim(scope, canonical):
+                return RequestResult('unknown','动作已由其他实例领取，不重复提交。')
+            if stopped():return RequestResult('not_sent','已暂停，本次动作取消；记录保留以避免重复。')
             try:
                 client.write(operation, member)
+                result=RequestResult('submitted','请求已提交，等待客户端回读确认；尚未确认成功。')
+                self.pending[operation] = (scope, now, member.key if member else None)
                 self.log({'return':'已请求返回组队房间，等待回读确认。','accept':'已请求接受对局，等待回读确认。',
-                          'skip_stats':'已请求跳过结算，等待流程恢复。'}.get(operation,'已请求转让队长，等待回读确认。'))
+                          }.get(operation,'已请求转让队长，等待回读确认。'))
             except LCUError as exc:
-                self.log('请求结果不确定，仅回读状态，不反复提交。' if exc.uncertain else str(exc))
-            return True
+                result=RequestResult('unknown' if exc.uncertain else 'rejected',str(exc)+'；本周期不自动重发。')
+                if exc.uncertain:self.pending[operation]=(scope,now,member.key if member else None)
+                self.log('请求结果不确定，仅回读状态，不反复提交。' if exc.uncertain else '请求被拒绝：'+str(exc))
+            self.results[key]=result
+            while len(self.results)>256:del self.results[next(iter(self.results))]
+            return result
+
+        def show_result(result,verb,submitted):
+            action={'submitted':submitted,'rejected':verb+'请求被拒绝','unknown':verb+'结果不确定','not_sent':'未执行'+verb}[result.kind]
+            self.status(sample,action,result.reason,members,caps)
 
         if sample.phase != 'ReadyCheck':
-            if self.pending.pop('accept', None): self.log('接受流程已结束；以客户端实际阶段为准。')
+            if self.pending.pop('accept', None):
+                self.log('已确认接受对局：客户端已进入英雄选择。' if sample.phase=='ChampSelect' else '接受流程已结束；以客户端实际阶段为准。')
         elif (sample.ready or {}).get('playerResponse') == 'Accepted':
             if self.pending.pop('accept', None): self.log('已确认接受对局。')
         if sample.phase not in POST_MATCH:
             if self.pending.pop('return', None):
                 self.log('已确认返回组队房间。' if sample.phase == 'Lobby' else '已离开赛后流程，客户端处于未组队或其他阶段。')
-            self.pending.pop('skip_stats', None)
         if lobby and not lobby.me.leader:
             for operation in ['promote_v2','promote_v3']:
-                if self.pending.pop(operation, None): self.log('已回读确认本人不再是队长。')
+                pending=self.pending.pop(operation,None)
+                if pending and any(m.key==pending[2] and m.leader for m in lobby.members):
+                    self.log('已回读确认选定队友成为队长，本人不再是队长。')
+                elif pending:self.log('队长状态已变化，但并非选定队友；不将其记为自动转让成功。')
+        if not lobby:
+            for operation in ['promote_v2','promote_v3']:self.pending.pop(operation,None)
 
-        self.status(sample, '等待客户端阶段', '三个功能独立运行；不选英雄，不自动开始匹配。', members, caps)
         if game_running or sample.phase in {'InProgress','Reconnect','GameStart','ChampSelect'}:
             self.status(sample, '保留手动操作', '对局、重连和英雄选择期间不执行大厅动作。', members, caps)
             return
@@ -217,8 +226,8 @@ class LobbyFlow:
             if now-self.phase_since < cfg['lobby_accept_delay']:
                 self.status(sample, '等待接受延迟', f"等待 {cfg['lobby_accept_delay']:g} 秒，期间可手动拒绝或暂停。", members, caps)
                 return
-            write('accept', episode[:2], lambda s: (s.ready or {}).get('state')=='InProgress' and (s.ready or {}).get('playerResponse')=='None' and not (s.ready or {}).get('suppressUx'))
-            self.status(sample, '接受状态等待确认', '同一次就绪确认只提交一次；接口重连不会循环接受。', members, caps)
+            result=write('accept', episode[:2], lambda s: (s.ready or {}).get('state')=='InProgress' and (s.ready or {}).get('playerResponse')=='None' and not (s.ready or {}).get('suppressUx'))
+            show_result(result,'接受对局','接受状态等待确认')
             return
         if lobby and cfg['lobby_auto_promote']:
             if not lobby.me.leader:
@@ -234,40 +243,18 @@ class LobbyFlow:
             def same_member(s):
                 current_lobby = parse_lobby(s.lobby, s.connection[1])
                 return current_lobby.party == lobby.party and current_lobby.me.leader and any(m.key==target.key and m.eligible and not m.leader for m in current_lobby.members)
-            write(operation, [episode[0],episode[3],episode[4]], same_member, target)
-            self.status(sample, '转让状态等待确认', '只转让本人的队长权限；结果不明确时不连续重发。', members, caps)
+            result=write(operation, [episode[0],episode[3],episode[4]], same_member, target)
+            show_result(result,'转让队长','转让状态等待确认')
             return
-        if sample.phase not in POST_MATCH or not cfg['lobby_auto_return']: return
+        if sample.phase not in POST_MATCH or not cfg['lobby_auto_return']:
+            self.status(sample, '等待客户端阶段', '三个基本功能独立运行；不点击头像，不自动跳过结算。', members, caps)
+            return
+        if sample.phase!='EndOfGame':
+            self.status(sample,'等待正常结算完成','尚未进入完整赛后结算；不提前提交返回请求，不自动跳过结算。',members,caps)
+            return
         if self.absent_since is None or now-self.absent_since < 2:
             self.status(sample, '等待游戏进程退出', '赛后仍有游戏进程时不点击客户端。', members, caps); return
         if now-self.phase_since < cfg['lobby_return_delay']:
             self.status(sample, '等待结算流程', f"赛后等待 {cfg['lobby_return_delay']:g} 秒。", members, caps); return
         scope = [episode[0],episode[2]]
-        if self.journal.has_claim(scope,'avatar_home'):
-            self.status(sample, '本局头像恢复不再重试', '头像恢复已尝试或被取消；等待实际流程变化，仍卡住时请手动检查。', members, caps)
-            return
-        if write('return', [*scope,sample.phase]):
-            self.status(sample, '正在返回房间', '请求已发出；成功与否以客户端回读结果为准。', members, caps); return
-        self.status(sample, '等待赛后恢复', '已尝试正常返回；持续观察跳过结算按钮或卡加载状态。', members, caps)
-        if not cfg['lobby_recover_client'] or not self.surface or now < self.next_surface: return
-        self.next_surface = now+3
-        if now-self.post_since < max(5,cfg['lobby_return_delay']): return
-        activate=not self.ui_focused;self.ui_focused=True
-        evidence = self.surface.observe(lambda: not stopped() and fresh(), activate=activate)
-        if stopped(): return
-        if evidence.skip:
-            if 'skip_stats' in caps and sample.phase=='PreEndOfGame':
-                if write('skip_stats', scope): return
-            elif fresh() and self.journal.claim(scope,'skip_button'):
-                result = self.surface.act('skip', evidence, lambda: not stopped() and fresh())
-                self.log('已点击跳过结算，等待流程恢复。' if result else '跳过结算控件已变化，取消点击。')
-                return
-        age = now-self.post_since
-        if age >= cfg['lobby_stuck_seconds']:
-            if evidence.avatar and fresh() and self.journal.claim(scope,'avatar_home'):
-                result = self.surface.act('avatar', evidence, lambda: not stopped() and fresh())
-                self.log('已点击右上角头像尝试回首页；不强制退队，等待客户端恢复。' if result else '头像识别或客户端阶段已变化，取消点击。')
-                self.status(sample, '头像回首页已尝试' if result else '头像恢复已取消',
-                            '本局最多尝试一次；仍未恢复时请手动检查客户端。' if result else '客户端或阶段已变化，未继续点击。', members, caps)
-            else:
-                self.status(sample, '卡加载恢复等待', evidence.reason or '未唯一识别头像，请先在大厅助手校准头像。', members, caps)
+        show_result(write('return', [*scope,sample.phase]),'返回房间','正在返回房间')

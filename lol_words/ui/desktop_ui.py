@@ -5,7 +5,7 @@ from pathlib import Path
 import queue
 import time
 import uuid
-from PySide6.QtCore import Qt, QTimer, QSize, QSortFilterProxyModel, QRectF, QPointF
+from PySide6.QtCore import Qt, QTimer, QSize, QSortFilterProxyModel
 from PySide6.QtGui import QColor, QFont, QIcon, QKeySequence, QPainter, QPalette, QPen, QPixmap, QStandardItem, QStandardItemModel, QShortcut
 from PySide6.QtWidgets import (QAbstractItemView, QAbstractSpinBox, QApplication, QButtonGroup, QCheckBox, QComboBox,
     QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog, QFormLayout, QFrame, QGroupBox,
@@ -252,60 +252,6 @@ class DownloadPrompt(QDialog):
 
     def reject(self): self.finish(False)
     def closeEvent(self, event): self.finish(False); event.accept()
-
-
-class AvatarCanvas(QWidget):
-    def __init__(self, frame):
-        super().__init__();self.image=frame.image();self.start=None;self.selection=None
-        self.setMinimumSize(460,280);self.setMouseTracking(True)
-
-    def mapping(self):
-        scale=min(self.width()/self.image.width(),self.height()/self.image.height())
-        return scale,(self.width()-self.image.width()*scale)/2,(self.height()-self.image.height()*scale)/2
-
-    def point(self, position):
-        scale,x,y=self.mapping()
-        return QPointF(max(0,min(self.image.width(),(position.x()-x)/scale)),max(0,min(self.image.height(),(position.y()-y)/scale)))
-
-    def paintEvent(self, event):
-        painter=QPainter(self);scale,x,y=self.mapping()
-        painter.drawImage(QRectF(x,y,self.image.width()*scale,self.image.height()*scale),self.image)
-        if self.selection:
-            painter.setPen(QPen(QColor('#29b49a'),2))
-            rect=self.selection
-            painter.drawRect(QRectF(x+rect.x()*scale,y+rect.y()*scale,rect.width()*scale,rect.height()*scale))
-        painter.end()
-
-    def mousePressEvent(self, event):
-        if event.button()==Qt.MouseButton.LeftButton:self.start=self.point(event.position());self.selection=None
-
-    def mouseMoveEvent(self, event):
-        if self.start is not None and event.buttons() & Qt.MouseButton.LeftButton:
-            self.selection=QRectF(self.start,self.point(event.position())).normalized();self.update()
-
-    def mouseReleaseEvent(self, event):
-        if self.start is not None:
-            self.selection=QRectF(self.start,self.point(event.position())).normalized();self.start=None;self.update()
-
-
-class AvatarDialog(QDialog):
-    def __init__(self, parent, service, frame):
-        super().__init__(parent);self.service,self.frame=service,frame
-        self.setWindowTitle('校准右上角头像');self.resize(940,620)
-        layout=QVBoxLayout(self)
-        layout.addWidget(label('框选右上角圆形头像的内部图案', 'heading'))
-        layout.addWidget(label('只保存选中头像的小图与相对位置，完整客户端画面不会保存或上传。换头像后需要重新校准。', 'muted'))
-        self.canvas=AvatarCanvas(frame);layout.addWidget(self.canvas,1)
-        self.error=label('', 'warning');self.error.hide();layout.addWidget(self.error)
-        layout.addLayout(hrow(button('取消',self.reject),None,button('保存头像定位',self.save,True)))
-
-    def save(self):
-        rect=self.canvas.selection
-        if rect is None:self.error.setText('请先拖动框选右上角头像。');self.error.show();return
-        try:
-            self.service.lobby.surface.save_avatar(self.frame,[rect.left(),rect.top(),rect.right(),rect.bottom()])
-            self.accept()
-        except (ValueError,OSError) as exc:self.error.setText(str(exc));self.error.show()
 
 
 class MainWindow(QMainWindow):
@@ -558,7 +504,7 @@ class MainWindow(QMainWindow):
         layout.addStretch()
 
     def lobby_page(self):
-        _,layout=self.page('大厅助手','赛后返回、转让队长、接受对局；不自动选英雄，不自动开始匹配。')
+        _,layout=self.page('大厅助手 · 待实测','仅保留正常赛后返回、转让队长、接受对局；三项基本功能尚待真实游戏验证。')
         self.lobby_dirty=False;self.lobby_state=LobbyStatus()
         frame,inner=panel();layout.addWidget(frame)
         self.lobby_connection=label('尚未检查客户端','heading')
@@ -566,9 +512,8 @@ class MainWindow(QMainWindow):
         self.lobby_detail=label('首次使用请分别开启需要的功能。','muted')
         inner.addWidget(self.lobby_connection);inner.addWidget(self.lobby_phase);inner.addWidget(self.lobby_action);inner.addWidget(self.lobby_detail)
         self.lobby_read_button=button('读取当前房间（只读）',self.service.refresh_lobby)
-        self.avatar_button=button('定位右上角头像…',self.service.calibrate_avatar)
         self.lobby_save_button=button('保存大厅设置',self.save_lobby_settings,True)
-        inner.addLayout(hrow(self.lobby_read_button,self.avatar_button,None,self.lobby_save_button))
+        inner.addLayout(hrow(self.lobby_read_button,None,self.lobby_save_button))
         self.admin_restart_button=button('以管理员权限重新启动',self.request_admin_restart)
         self.admin_restart_button.setToolTip('先暂停并清理任务，再由 Windows 请求授权；新窗口保持暂停，只读检查大厅连接。')
         inner.addWidget(self.admin_restart_button);self.admin_restart_button.hide()
@@ -582,17 +527,14 @@ class MainWindow(QMainWindow):
         content.addWidget(label('默认按客户端成员顺序选择，跳过本人、机器人与观战者。指定队友未出现时等待，不转给其他人。','muted'))
         self.lobby_accept_delay=QDoubleSpinBox();self.lobby_accept_delay.setRange(0,10);self.lobby_accept_delay.setDecimals(1);self.lobby_accept_delay.setSuffix(' 秒')
         self.lobby_return_delay=QDoubleSpinBox();self.lobby_return_delay.setRange(0,30);self.lobby_return_delay.setDecimals(1);self.lobby_return_delay.setSuffix(' 秒')
-        self.lobby_stuck=QDoubleSpinBox();self.lobby_stuck.setRange(10,180);self.lobby_stuck.setDecimals(0);self.lobby_stuck.setSuffix(' 秒')
         self.lobby_rules_hint=label('','muted');content.addWidget(self.lobby_rules_hint)
-        self.lobby_advanced_toggle=QCheckBox('高级：调整等待时间与卡结算门槛');content.addWidget(self.lobby_advanced_toggle)
+        self.lobby_advanced_toggle=QCheckBox('高级：调整等待时间');content.addWidget(self.lobby_advanced_toggle)
         self.lobby_advanced=QWidget();form=QFormLayout(self.lobby_advanced);form.setVerticalSpacing(12);form.setContentsMargins(0,0,0,0)
-        for title,control in [('接受对局前等待',self.lobby_accept_delay),('赛后返回前等待',self.lobby_return_delay),('卡结算恢复门槛',self.lobby_stuck)]:form.addRow(title,control)
+        for title,control in [('接受对局前等待',self.lobby_accept_delay),('赛后返回前等待',self.lobby_return_delay)]:form.addRow(title,control)
         content.addWidget(self.lobby_advanced);self.lobby_advanced.hide();self.lobby_advanced_toggle.toggled.connect(self.lobby_advanced.setVisible)
-        self.client_recovery=QCheckBox('返回失败时启用赛后恢复：跳过结算 / 头像回首页');content.addWidget(self.client_recovery)
-        content.addWidget(label('只在已确认的赛后阶段且游戏进程退出后执行。头像路径只在卡结算超时后尝试一次，不强制退队、不修改客户端。识别不到头像时先定位，不按固定坐标点击。','muted'))
-        self.lobby_notice=label('三个自动功能默认关闭。保存后立即生效；全局暂停 / 退出会取消未执行动作。','notice');layout.addWidget(self.lobby_notice)
-        for control in [self.auto_return,self.auto_promote,self.auto_accept,self.client_recovery]:control.toggled.connect(self.lobby_edited)
-        for control in [self.lobby_accept_delay,self.lobby_return_delay,self.lobby_stuck]:control.valueChanged.connect(self.lobby_edited)
+        self.lobby_notice=label('默认配置中三个自动功能均关闭。已移除头像点击和跳过结算；客户端卡加载时请手动处理。','notice');layout.addWidget(self.lobby_notice)
+        for control in [self.auto_return,self.auto_promote,self.auto_accept]:control.toggled.connect(self.lobby_edited)
+        for control in [self.lobby_accept_delay,self.lobby_return_delay]:control.valueChanged.connect(self.lobby_edited)
         self.preferred_member.activated.connect(self.lobby_edited)
         layout.addStretch()
 
@@ -611,17 +553,17 @@ class MainWindow(QMainWindow):
     def refresh_lobby_config(self):
         if self.lobby_dirty:return
         config=self.service.config
-        self.lobby_rules_hint.setText(f"已保存参数：接受前 {config['lobby_accept_delay']:g} 秒；赛后返回前 {config['lobby_return_delay']:g} 秒；卡结算门槛 {config['lobby_stuck_seconds']:g} 秒。")
-        for control,key in [(self.auto_return,'lobby_auto_return'),(self.auto_promote,'lobby_auto_promote'),(self.auto_accept,'lobby_auto_accept'),(self.client_recovery,'lobby_recover_client')]:
+        self.lobby_rules_hint.setText(f"已保存参数：接受前 {config['lobby_accept_delay']:g} 秒；赛后返回前 {config['lobby_return_delay']:g} 秒。")
+        for control,key in [(self.auto_return,'lobby_auto_return'),(self.auto_promote,'lobby_auto_promote'),(self.auto_accept,'lobby_auto_accept')]:
             control.blockSignals(True);control.setChecked(config[key]);control.blockSignals(False)
-        for control,key in [(self.lobby_accept_delay,'lobby_accept_delay'),(self.lobby_return_delay,'lobby_return_delay'),(self.lobby_stuck,'lobby_stuck_seconds')]:
+        for control,key in [(self.lobby_accept_delay,'lobby_accept_delay'),(self.lobby_return_delay,'lobby_return_delay')]:
             control.blockSignals(True);control.setValue(config[key]);control.blockSignals(False)
         self.refresh_lobby_members(self.lobby_state.members)
 
     def save_lobby_settings(self):
         values=dict(lobby_auto_return=self.auto_return.isChecked(),lobby_auto_promote=self.auto_promote.isChecked(),lobby_auto_accept=self.auto_accept.isChecked(),
-            lobby_recover_client=self.client_recovery.isChecked(),lobby_preferred_member=self.preferred_member.currentData() or '',
-            lobby_accept_delay=self.lobby_accept_delay.value(),lobby_return_delay=self.lobby_return_delay.value(),lobby_stuck_seconds=self.lobby_stuck.value())
+            lobby_preferred_member=self.preferred_member.currentData() or '',
+            lobby_accept_delay=self.lobby_accept_delay.value(),lobby_return_delay=self.lobby_return_delay.value())
         if self.save_change(values):
             self.lobby_dirty=False;self.lobby_save_button.setText('保存大厅设置')
             self.refresh_lobby_config()
@@ -894,12 +836,6 @@ class MainWindow(QMainWindow):
             self.lobby_read_button.setEnabled(not busy);self.lobby_read_button.setText('正在读取…' if busy else '读取当前房间（只读）')
             if error:self.lobby_notice.setText(result)
             elif not busy:self.apply_lobby_state(result)
-        elif key=='avatar_frame':
-            self.avatar_button.setEnabled(not busy);self.avatar_button.setText('正在读取客户端画面…' if busy else '定位右上角头像…')
-            if error:self.lobby_notice.setText(result)
-            elif not busy:
-                dialog=AvatarDialog(self,self.service,result)
-                if dialog.exec()==QDialog.DialogCode.Accepted:self.lobby_notice.setText('头像定位已保存，仅在已确认的赛后卡加载场景中使用。')
         elif key == 'scan':
             self.scan_button.setEnabled(not busy); self.scan_button.setText('正在检测…' if busy else '重新检测')
             if busy: self.scan_status.setText('正在读取安装登记、快捷方式与实际运行程序…')

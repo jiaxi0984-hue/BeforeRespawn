@@ -43,7 +43,5 @@
   "lobby_auto_accept": false,
   "lobby_accept_delay": 1.0,
   "lobby_return_delay": 3.0,
-  "lobby_stuck_seconds": 30.0,
-  "lobby_preferred_member": "",
-  "lobby_recover_client": true
+  "lobby_preferred_member": ""
 }

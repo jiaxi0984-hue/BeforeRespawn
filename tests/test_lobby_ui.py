@@ -34,8 +34,8 @@ class LobbyUiTests(unittest.TestCase):
         self.assertFalse(self.window.auto_return.isChecked());self.assertFalse(self.window.auto_promote.isChecked());self.assertFalse(self.window.auto_accept.isChecked())
         before=self.service.config['death_switch_delay']
         self.window.auto_return.setChecked(True);self.window.auto_promote.setChecked(True);self.window.auto_accept.setChecked(True)
-        self.window.lobby_stuck.setValue(45);self.window.save_lobby_settings()
-        self.assertTrue(self.service.config['lobby_auto_accept']);self.assertEqual(self.service.config['lobby_stuck_seconds'],45)
+        self.window.lobby_accept_delay.setValue(2.5);self.window.save_lobby_settings()
+        self.assertTrue(self.service.config['lobby_auto_accept']);self.assertEqual(self.service.config['lobby_accept_delay'],2.5)
         self.assertEqual(self.service.config['death_switch_delay'],before)
 
     def test_real_lobby_event_updates_ui_without_changing_death_phase(self):
@@ -64,11 +64,10 @@ class LobbyUiTests(unittest.TestCase):
         self.window.set_mode('entertainment')
         self.assertTrue(self.window.auto_accept.isChecked());self.assertFalse(self.service.config['lobby_auto_accept'])
 
-    def test_missing_client_and_calibration_errors_are_actionable(self):
+    def test_missing_client_errors_are_actionable(self):
         self.window.handle_job('lobby_read','error','等待客户端启动')
         self.assertIn('客户端',self.window.lobby_notice.text())
-        self.window.handle_job('avatar_frame','error','请先打开客户端')
-        self.assertTrue(self.window.avatar_button.isEnabled());self.assertIn('打开客户端',self.window.lobby_notice.text())
+
 
     def test_closed_features_do_not_connect_to_client(self):
         stop=threading.Event()

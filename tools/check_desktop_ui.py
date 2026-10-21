@@ -68,9 +68,9 @@ def main():
                 reason='截图检查已停止监测；不操作真实客户端。',target_name='Anki'))
             window.apply_lobby_state(LobbyStatus(action='大厅助手已关闭',detail='三个功能默认关闭；可分别开启并保存，暂未连接真实客户端。'))
             shot('12-lobby-default.png')
-            window.lobby_notice.setText('模拟状态 · 展示跳过结算的恢复路径，不代表真实游戏。')
-            window.apply_lobby_state(LobbyStatus('客户端已连接','等待结算加载','等待赛后恢复','已请求返回房间，仍未离开结算；识别到跳过结算后将尝试一次。'))
-            shot('13-lobby-recovery-simulated.png')
+            window.lobby_notice.setText('模拟状态 · 展示请求被拒绝后的提示，不代表真实游戏实测。')
+            window.apply_lobby_state(LobbyStatus('客户端已连接','赛后结算','返回房间请求被拒绝','模拟状态（非真实对局） · 客户端请求未完成（HTTP 403）；本周期不自动重发，请手动处理。'))
+            shot('13-lobby-error-simulated.png')
             results=dict(qt_platform=app.platformName(),device_pixel_ratio=window.devicePixelRatioF(),
                 logical_size=[window.width(),window.height()],screenshots=13,
                 live_game_verified=False,downloads_performed=False,

@@ -90,10 +90,6 @@ class ApplicationService:
     def refresh_lobby(self):
         return self.submit('lobby_read', self.lobby.read_only)
 
-    def calibrate_avatar(self):
-        epoch=self.epoch
-        return self.submit('avatar_frame',lambda:self.lobby.calibrate(lambda:self.closing or self.epoch!=epoch))
-
     def on_monitor_exit(self):
         # 核心监测意外退出时，大厅线程也停止，避免界面已暂停却仍在接受对局。
         self.stop_event.set()
