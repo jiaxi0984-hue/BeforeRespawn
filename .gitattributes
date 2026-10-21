@@ -4,3 +4,6 @@
 *.json text eol=lf
 *.txt text eol=lf
 *.cmd text eol=crlf
+
+# 历史快照保持来源 Git blob 的原始字节，不归一化行尾。
+archive/**/snapshot/** -text

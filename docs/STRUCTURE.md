@@ -16,6 +16,7 @@ LOL-Words-zhandoushuang/
 ├─ tests/                 回归与入口集成测试
 ├─ tools/                 只读检查、替身窗口检查、截图和打包脚本
 ├─ assets/                界面图标
+├─ archive/               已退役功能与历史资料，仅在仓库保存
 ├─ docs/                  配置、界面、目录、源码结构及许可说明
 │  └─ screenshots/        当前界面截图
 ├─ licenses/              依赖许可证

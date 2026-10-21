@@ -1,0 +1,521 @@
+{
+  "format_version": 1,
+  "archived_on": "2026-10-21",
+  "active_base": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7",
+  "purpose": "read_only_historical_sources",
+  "included_in_current_packages": false,
+  "groups": [
+    {
+      "id": "lobby-assistant",
+      "title": "大厅助手基本功能",
+      "source": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "removed": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7",
+      "note": "自动接受、转让队长、正常赛后返回已删除；没有完成真实自动操作验证。"
+    },
+    {
+      "id": "lobby-recovery",
+      "title": "大厅异常恢复",
+      "source": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "removed": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "note": "头像校准、控件识别、本机文字识别、跳过结算等路径已删除；真实客户端异常恢复未实测。"
+    },
+    {
+      "id": "anki-lifecycle-v1",
+      "title": "早期 Anki 生命周期策略",
+      "source": "707ad4bea6b26e2ceca85e0f7b010a63f28350ae",
+      "removed": null,
+      "note": "进入对局启动、结束对局关闭 Anki 的旧策略已由现行首次需要启动、复用和结束保留策略替代；不再作为当前支持行为。"
+    },
+    {
+      "id": "mode-settings-v1",
+      "title": "早期模式设置",
+      "source": "ec8dc47d460ddac51090d6f9b6496720e2b3b84f",
+      "removed": null,
+      "note": "保存早期模式设置与迁移前界面的历史实现；当前设置以主项目为准，归档不恢复旧入口。"
+    },
+    {
+      "id": "history",
+      "title": "历史验证资料",
+      "source": "2b69fc1fa453854ebeccf891920d0b6e2d64415a",
+      "removed": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "note": "已从当前文档删除的历史验证记录，仅作追溯；历史数量、状态和命令不能作为当前版本证明。"
+    }
+  ],
+  "files": [
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "config.example.json",
+      "archive_path": "lobby-assistant/snapshot/config.example.json.txt",
+      "git_blob": "d4fdd198aa2d5fc7e8819792720541c5913fd989",
+      "sha256": "9228a7ac744e5bc4777f2a1473c94d112fe8e4b5b8c2f072caf4e5f444786e3d",
+      "bytes": 1027,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "docs/LOBBY.md",
+      "archive_path": "lobby-assistant/snapshot/docs/LOBBY.md.txt",
+      "git_blob": "431b05ac3b9f10c3e94655a202c30f9eee98dea8",
+      "sha256": "80c67c48dbbb64a43939bd18658f81674654fe3af75decd9caffff50cc15c19a",
+      "bytes": 3470,
+      "reason": "deleted_file",
+      "removed_in": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "docs/screenshots/12-lobby-default.png",
+      "archive_path": "lobby-assistant/snapshot/docs/screenshots/12-lobby-default.png",
+      "git_blob": "8d54e0fb021f603885723cd158b9afb5f85b2479",
+      "sha256": "8784f7da3cd03819fd2e6940bd356d374b3afaf21cb1c8edf709d5573c7fd14b",
+      "bytes": 98531,
+      "reason": "deleted_file",
+      "removed_in": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "docs/screenshots/13-lobby-error-simulated.png",
+      "archive_path": "lobby-assistant/snapshot/docs/screenshots/13-lobby-error-simulated.png",
+      "git_blob": "62d6ce9af70e873820c02a54b1ce43fc98dd0fad",
+      "sha256": "a04f09d2ac835aec0ad388ec4b005573c58e18d1eb3035d58974c7bf6faee096",
+      "bytes": 100898,
+      "reason": "deleted_file",
+      "removed_in": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "lol_words/application/app.py",
+      "archive_path": "lobby-assistant/snapshot/lol_words/application/app.py.txt",
+      "git_blob": "9f51640b035845d640cca43619cff300f873b324",
+      "sha256": "6fd6d91e99a22f6650eccfb29451f0ec243774c84645f046c6c5cc5b07bc6b28",
+      "bytes": 2951,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "lol_words/application/application_service.py",
+      "archive_path": "lobby-assistant/snapshot/lol_words/application/application_service.py.txt",
+      "git_blob": "ddf20b3084c97c49917106db8486e6e02f8bb930",
+      "sha256": "b1c3167aee62df9ea96e6642db1f37200c75bc8d4780d21ad163f9672fd0a60a",
+      "bytes": 14593,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "lol_words/lobby/__init__.py",
+      "archive_path": "lobby-assistant/snapshot/lol_words/lobby/__init__.py.txt",
+      "git_blob": "c704c21a8dbedceabdaad83493c9b49b8444b122",
+      "sha256": "3257d5d67ecd9ed0c41753282680b6b1268249a5cb58bc3135305968dfd265e2",
+      "bytes": 28,
+      "reason": "deleted_file",
+      "removed_in": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "lol_words/lobby/lcu_api.py",
+      "archive_path": "lobby-assistant/snapshot/lol_words/lobby/lcu_api.py.txt",
+      "git_blob": "d938ae539b93a5ef4366c979ead0db6a13fd4a7a",
+      "sha256": "170c9187b93ea2b7060cca788c724ccdeed9b9bddc66c00e5d2d0609fa978f6d",
+      "bytes": 16220,
+      "reason": "deleted_file",
+      "removed_in": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "lol_words/lobby/lobby_config.py",
+      "archive_path": "lobby-assistant/snapshot/lol_words/lobby/lobby_config.py.txt",
+      "git_blob": "accac970e55fbe8aba05ab27f33a70a3d9d71707",
+      "sha256": "ee591714fbf9cd6df6e2a7842a97b9e47c9c4a0f51a113408c5f9d450d3f1840",
+      "bytes": 1402,
+      "reason": "deleted_file",
+      "removed_in": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "lol_words/lobby/lobby_flow.py",
+      "archive_path": "lobby-assistant/snapshot/lol_words/lobby/lobby_flow.py.txt",
+      "git_blob": "ffb635e083e8dcd9663b357224afb1295117f374",
+      "sha256": "d696e33e156fae9e5eae7235ac780d25f51775b8ebe9c626af1c6ba53834f57c",
+      "bytes": 14938,
+      "reason": "deleted_file",
+      "removed_in": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "lol_words/lobby/lobby_runtime.py",
+      "archive_path": "lobby-assistant/snapshot/lol_words/lobby/lobby_runtime.py.txt",
+      "git_blob": "cc3617f5402cce19500d97d8dd21e1deccb2eb76",
+      "sha256": "9dca75cc38232e155908da6fca40a86cb45c2c66d720f32eba868a7bebfac11b",
+      "bytes": 5228,
+      "reason": "deleted_file",
+      "removed_in": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "lol_words/modes/mode_config.py",
+      "archive_path": "lobby-assistant/snapshot/lol_words/modes/mode_config.py.txt",
+      "git_blob": "036e255f2326e06466cbd82e3396ed3966306ee9",
+      "sha256": "f734e8ddfd68512e5a0e0fccfdc0b3534bd73cfd140b3d87bd6bfe707c33eebf",
+      "bytes": 4730,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "lol_words/system/privileges.py",
+      "archive_path": "lobby-assistant/snapshot/lol_words/system/privileges.py.txt",
+      "git_blob": "bf30780d71ef9be0c8941d58c7929fc087ff2485",
+      "sha256": "b814c60b9c6f857c06b1f91f1634f4b9d1ce23a0bcc2309a7a4dab11cea055f9",
+      "bytes": 2485,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "lol_words/ui/desktop_ui.py",
+      "archive_path": "lobby-assistant/snapshot/lol_words/ui/desktop_ui.py.txt",
+      "git_blob": "9ab16f3d05bdb96a1edde35898c4ea96b4b53bc4",
+      "sha256": "7bc6c224369ec774c86df14ef04349b193e9aad945540aab314cc0e9c3cc10ad",
+      "bytes": 66061,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "tests/test_lobby_connection.py",
+      "archive_path": "lobby-assistant/snapshot/tests/test_lobby_connection.py.txt",
+      "git_blob": "15be6f10830a93964fb08706c6b93adbd6525401",
+      "sha256": "b43fd8fd5cc1ec66bbb8dde4875b5afd93130d14a8330fb2b7fb1f3e9fd8eaa7",
+      "bytes": 6567,
+      "reason": "deleted_file",
+      "removed_in": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "tests/test_lobby_flow.py",
+      "archive_path": "lobby-assistant/snapshot/tests/test_lobby_flow.py.txt",
+      "git_blob": "e678aca23f7b9054c3a52ffe5c2456dbb0204e72",
+      "sha256": "d52f9c57f7a2930f656405dc76ddd4543b9c288030729c4a8f8a75fc12c01482",
+      "bytes": 17105,
+      "reason": "deleted_file",
+      "removed_in": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "tests/test_lobby_ui.py",
+      "archive_path": "lobby-assistant/snapshot/tests/test_lobby_ui.py.txt",
+      "git_blob": "56f02eba2dc2ceb7617d7e829cdc901d9da63d9c",
+      "sha256": "ed6b25fa398da7b7db5646e8e696a3a1a84e605c75d278689ad2d2a3bfa5a323",
+      "bytes": 5231,
+      "reason": "deleted_file",
+      "removed_in": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7"
+    },
+    {
+      "group": "lobby-assistant",
+      "source_commit": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1",
+      "original_path": "tools/check_lobby_readonly.py",
+      "archive_path": "lobby-assistant/snapshot/tools/check_lobby_readonly.py.txt",
+      "git_blob": "f8055eec9c17e6f9f1ded56a3b0a624c92b088f8",
+      "sha256": "afc6497bf68dd2004fef648142181f77abcb02779a3a85bdb17df1283cf8a10e",
+      "bytes": 1175,
+      "reason": "deleted_file",
+      "removed_in": "6214e1785d4fa268c9b2a2ecc6d2cb345fee2aa7"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "docs/LOBBY.md",
+      "archive_path": "lobby-recovery/snapshot/docs/LOBBY.md.txt",
+      "git_blob": "039fab8a215d26ef9e2dcbf35361979cc5d950bb",
+      "sha256": "ae94e60ebf5791a41bb7ca8e08cda710b5c265eb663741eea5b4b0e05df59246",
+      "bytes": 7717,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "docs/screenshots/13-lobby-recovery-simulated.png",
+      "archive_path": "lobby-recovery/snapshot/docs/screenshots/13-lobby-recovery-simulated.png",
+      "git_blob": "c19e35bca1397ca7f666d7e0dab3e9e4631f38c4",
+      "sha256": "225cf4b677f56800c0aafbbebea5e601d32238772d73d1fb5648b6ef63623dbd",
+      "bytes": 102988,
+      "reason": "deleted_file",
+      "removed_in": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "docs/screenshots/14-lobby-permission-real.png",
+      "archive_path": "lobby-recovery/snapshot/docs/screenshots/14-lobby-permission-real.png",
+      "git_blob": "9003b2b56fb4c8e83e293f45a689fb4a85084609",
+      "sha256": "0e50159e6184b37ad781f33ab2f6c0df772a3176dbe1bc2b74cc820701d30446",
+      "bytes": 107648,
+      "reason": "deleted_file",
+      "removed_in": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "lol_words/application/application_service.py",
+      "archive_path": "lobby-recovery/snapshot/lol_words/application/application_service.py.txt",
+      "git_blob": "dce7bf1ecebae0f3a9f15099b58b26b3a2818faa",
+      "sha256": "2986edfea651221e11a67e8e077be9e4d8f2f04b1b4965790e5d24459adcb25a",
+      "bytes": 14764,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "lol_words/lobby/client_accessibility.py",
+      "archive_path": "lobby-recovery/snapshot/lol_words/lobby/client_accessibility.py.txt",
+      "git_blob": "272de7f95a3beaf119d1af8b8b0226c468fdb57a",
+      "sha256": "2ad82bc526a64d2598debbabef3ea05055d65567686acfdc82c7aa4c20f19cf9",
+      "bytes": 3975,
+      "reason": "deleted_file",
+      "removed_in": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "lol_words/lobby/client_surface.py",
+      "archive_path": "lobby-recovery/snapshot/lol_words/lobby/client_surface.py.txt",
+      "git_blob": "43313df7eaa07e41af1fc2b3d8cfb8daa4a2f8e0",
+      "sha256": "e8230c35b203a3ddea2262db2ba0d06324acc2b463cb0f5c72af20a186878189",
+      "bytes": 14892,
+      "reason": "deleted_file",
+      "removed_in": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "lol_words/lobby/lcu_api.py",
+      "archive_path": "lobby-recovery/snapshot/lol_words/lobby/lcu_api.py.txt",
+      "git_blob": "dd7f4a3ed0541668a27b0b92dbaf32bcdfc74c1a",
+      "sha256": "2c94c3bc82b0ef823b909c90723ae8ba74017181eb490d2d13847401b7088834",
+      "bytes": 16788,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "lol_words/lobby/lobby_config.py",
+      "archive_path": "lobby-recovery/snapshot/lol_words/lobby/lobby_config.py.txt",
+      "git_blob": "90eef65549d0827d0f0f854695c1f2075c9f3c47",
+      "sha256": "cba8c7a8ee84df5ba6d56611baa88ee54ffef1338d8aa8fd5553d1ef98205800",
+      "bytes": 1434,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "lol_words/lobby/lobby_flow.py",
+      "archive_path": "lobby-recovery/snapshot/lol_words/lobby/lobby_flow.py.txt",
+      "git_blob": "753f199952835a73fe0a4ca0cbb9c53e6e8d10eb",
+      "sha256": "01b18ba25e9f8418f0dde2dec42ec4d1caf665c4800178dc3740d97e324f556e",
+      "bytes": 16142,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "lol_words/lobby/lobby_runtime.py",
+      "archive_path": "lobby-recovery/snapshot/lol_words/lobby/lobby_runtime.py.txt",
+      "git_blob": "f7ce7ad71fcc7c9bcb83c0f7e2f203ade80f105c",
+      "sha256": "1cb76ecc8375e555cdfeb65f38ea9f6e8f9aafe25ad5e0638f7a7068370c0fc2",
+      "bytes": 5631,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "lol_words/lobby/ocr_client.ps1",
+      "archive_path": "lobby-recovery/snapshot/lol_words/lobby/ocr_client.ps1.txt",
+      "git_blob": "8174a8aa2aac8bad6fca712d7c4117e3ab735018",
+      "sha256": "f40fa0afeac6a34a7ab595dda92fa8f80c3387da7f3778595b7330234c921542",
+      "bytes": 2996,
+      "reason": "deleted_file",
+      "removed_in": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "lol_words/ui/desktop_ui.py",
+      "archive_path": "lobby-recovery/snapshot/lol_words/ui/desktop_ui.py.txt",
+      "git_blob": "2c4eceb62a8c58c37ce22c5cd2040d88c314a8e9",
+      "sha256": "4bd6d47cc53c764f326ef48d3c5eb3935cca5ca369cbf6f9bad8ef7351224032",
+      "bytes": 70361,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "tests/test_client_surface.py",
+      "archive_path": "lobby-recovery/snapshot/tests/test_client_surface.py.txt",
+      "git_blob": "b5d852a4a438220c308f37fa9212ef044994096d",
+      "sha256": "e8387596c25d5dbe795218dcf22df397a29d2d0d04cd7f2cf723f61b696f806c",
+      "bytes": 5252,
+      "reason": "deleted_file",
+      "removed_in": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1"
+    },
+    {
+      "group": "lobby-recovery",
+      "source_commit": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc",
+      "original_path": "tools/check_lobby_recovery.py",
+      "archive_path": "lobby-recovery/snapshot/tools/check_lobby_recovery.py.txt",
+      "git_blob": "8d6f012c60d3d3c49aea2491d107092bcb59fe23",
+      "sha256": "1cb54db264583cefef6af40d035ecc95eef5978db9a0ee23f6a4e1bd8693c896",
+      "bytes": 3219,
+      "reason": "deleted_file",
+      "removed_in": "ddbdc8b6787460a8b4b5d9d5cb258080a71b37c1"
+    },
+    {
+      "group": "anki-lifecycle-v1",
+      "source_commit": "707ad4bea6b26e2ceca85e0f7b010a63f28350ae",
+      "original_path": "README.md",
+      "archive_path": "anki-lifecycle-v1/snapshot/README.md.txt",
+      "git_blob": "7d84d091ac4957296dce5b94e930610095ca18d4",
+      "sha256": "b93f2a15a2620805f33075444001ff00de8f3961fc26f88a92c8094a8ba97f7e",
+      "bytes": 7820,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "anki-lifecycle-v1",
+      "source_commit": "707ad4bea6b26e2ceca85e0f7b010a63f28350ae",
+      "original_path": "app.py",
+      "archive_path": "anki-lifecycle-v1/snapshot/app.py.txt",
+      "git_blob": "82d0dafa4cf00aaa69ecf7648388fea99534daa2",
+      "sha256": "6448100b9661449cc8903d5e40abebe69f10f7b140be220318b3c248afe5467a",
+      "bytes": 23822,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "anki-lifecycle-v1",
+      "source_commit": "707ad4bea6b26e2ceca85e0f7b010a63f28350ae",
+      "original_path": "automation.py",
+      "archive_path": "anki-lifecycle-v1/snapshot/automation.py.txt",
+      "git_blob": "6d44614457045ac0aea6db872b0e15682c18561b",
+      "sha256": "90881ccffb5380f12b23339aaf8db6411193a9e5ebbd4985cd64b73d9a14cedc",
+      "bytes": 6544,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "anki-lifecycle-v1",
+      "source_commit": "707ad4bea6b26e2ceca85e0f7b010a63f28350ae",
+      "original_path": "config.example.json",
+      "archive_path": "anki-lifecycle-v1/snapshot/config.example.json.txt",
+      "git_blob": "91d3964a47ed8dfb3c9375559cab7112a53b73c2",
+      "sha256": "074949da55b47bf7017a4715fa8f15dc9338cf7e175e297fa448c678feffa9ce",
+      "bytes": 268,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "anki-lifecycle-v1",
+      "source_commit": "707ad4bea6b26e2ceca85e0f7b010a63f28350ae",
+      "original_path": "native.py",
+      "archive_path": "anki-lifecycle-v1/snapshot/native.py.txt",
+      "git_blob": "81223875fcab88b4323a3c3db65fb9ae75f764fa",
+      "sha256": "d19c12540323f350b45d6cd7748725d2f334278eb28a28ec75d848680c6e8d65",
+      "bytes": 12611,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "anki-lifecycle-v1",
+      "source_commit": "707ad4bea6b26e2ceca85e0f7b010a63f28350ae",
+      "original_path": "tests/test_app.py",
+      "archive_path": "anki-lifecycle-v1/snapshot/tests/test_app.py.txt",
+      "git_blob": "c588fa71a365aef63414430a547374585a32063a",
+      "sha256": "94669f0189a40626947b2b52ef7cb20a1e87095ccc0e85ce73468768118a6600",
+      "bytes": 44603,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "mode-settings-v1",
+      "source_commit": "ec8dc47d460ddac51090d6f9b6496720e2b3b84f",
+      "original_path": "README.md",
+      "archive_path": "mode-settings-v1/snapshot/README.md.txt",
+      "git_blob": "4cbbf2c8fa6dff69bdcfc321c4f42c48de4d6307",
+      "sha256": "dc4ae81c234079fc379088bb632271a9dc46a8388a1d7f508fbca348843854b9",
+      "bytes": 10015,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "mode-settings-v1",
+      "source_commit": "ec8dc47d460ddac51090d6f9b6496720e2b3b84f",
+      "original_path": "app.py",
+      "archive_path": "mode-settings-v1/snapshot/app.py.txt",
+      "git_blob": "f09b9e7abf772c60f9ff50c2d6ccbcc498d2ee87",
+      "sha256": "6e28364a79af4412614c77fa51f55bddf29c0f4f174af9a835f33ccd4625fa34",
+      "bytes": 33461,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "mode-settings-v1",
+      "source_commit": "ec8dc47d460ddac51090d6f9b6496720e2b3b84f",
+      "original_path": "config.example.json",
+      "archive_path": "mode-settings-v1/snapshot/config.example.json.txt",
+      "git_blob": "ed746b84d9aa0a4dac3508584bf208b585b44c90",
+      "sha256": "d3fb18fb0d52dd22fa39270031ea51758dd2219de03b8cc4bb77af73ded68329",
+      "bytes": 880,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "mode-settings-v1",
+      "source_commit": "ec8dc47d460ddac51090d6f9b6496720e2b3b84f",
+      "original_path": "mode_config.py",
+      "archive_path": "mode-settings-v1/snapshot/mode_config.py.txt",
+      "git_blob": "dec1c30ef0a2ea74260c5f0b9abb6da96a638b34",
+      "sha256": "3fb4a9046498dc3171975005c492fb2b42ca0d1ee87698276fee8430f97aaf24",
+      "bytes": 4786,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "mode-settings-v1",
+      "source_commit": "ec8dc47d460ddac51090d6f9b6496720e2b3b84f",
+      "original_path": "mode_runtime.py",
+      "archive_path": "mode-settings-v1/snapshot/mode_runtime.py.txt",
+      "git_blob": "d7fc041aefe33b34a3977ab3de9acfdc2dfc4dde",
+      "sha256": "b39d2e6c5c8f930e68eaadc88d1a635bc76352639a5f4c089eb25fce48f33ae0",
+      "bytes": 7115,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "mode-settings-v1",
+      "source_commit": "ec8dc47d460ddac51090d6f9b6496720e2b3b84f",
+      "original_path": "tests/test_modes.py",
+      "archive_path": "mode-settings-v1/snapshot/tests/test_modes.py.txt",
+      "git_blob": "dccf3c7fe4795a15e71c142b912f803bd0367957",
+      "sha256": "18f55d0025ec5bc491014f7bfb0f803ea3067c287103375b02c680b346d28a87",
+      "bytes": 31597,
+      "reason": "related_historical_snapshot"
+    },
+    {
+      "group": "history",
+      "source_commit": "2b69fc1fa453854ebeccf891920d0b6e2d64415a",
+      "original_path": "验证记录.md",
+      "archive_path": "history/snapshot/验证记录.md.txt",
+      "git_blob": "46455c5fa8277eab2ec0bd95d76eef4e612a02f4",
+      "sha256": "87ef8f6abc71e6e6da309a8b1e94c384a2898c27352394961afa36f3428704be",
+      "bytes": 17050,
+      "reason": "deleted_file",
+      "removed_in": "0ab7bded88cfa27e4e6ab1b870db04572d2130bc"
+    }
+  ],
+  "coverage": {
+    "deleted_files": 20,
+    "covered_deleted_files": 20,
+    "historical_files": 45
+  }
+}

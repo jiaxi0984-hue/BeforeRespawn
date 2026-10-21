@@ -1,0 +1,11 @@
+{
+  "anki_path": "",
+  "player_id": "",
+  "return_before_seconds": 1.0,
+  "poll_seconds": 0.2,
+  "gray_threshold": 0.82,
+  "confirmation_frames": 2,
+  "capture_region": [0.12, 0.12, 0.88, 0.70],
+  "preserve_existing_anki": false,
+  "game_display_mode": "borderless"
+}

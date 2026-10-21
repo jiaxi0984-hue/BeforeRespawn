@@ -43,7 +43,7 @@ def main():
         for path in files:
             relative = path.relative_to(ROOT).as_posix()
             assert relative not in {'config.json', 'runtime-python.txt', 'runtime.log'}
-            assert not relative.startswith(('runtime/', '.git/', 'backups/'))
+            assert not relative.startswith(('runtime/', '.git/', 'backups/', 'archive/'))
             raw = path.read_bytes()
             manifest['files'][relative] = dict(bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())
             archive.writestr(relative, raw)
