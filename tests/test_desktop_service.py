@@ -148,6 +148,27 @@ class ServiceCase(unittest.TestCase):
             self.assertIn('未获得前台',self.service.manual_open(selected_spec(self.service.config),self.service.epoch))
         self.assertIsNone(manager.freshly_started)
 
+    def test_manual_open_waits_for_a_running_process_that_is_still_creating_its_window(self):
+        manager=Mock(state='waiting',freshly_started=7,pending_since=time.monotonic(),last_failure='')
+        manager.poll.side_effect=[None,7]
+        manager.adapter.reason='窗口仍在初始化'
+        self.native.restore=Mock(return_value=True)
+        with patch.object(self.service.registry,'get',return_value=manager):
+            self.assertIn('已显示',self.service.manual_open(selected_spec(self.service.config),self.service.epoch))
+        self.assertEqual(manager.poll.call_count,2)
+
+    def test_malformed_configuration_is_reported_without_overwriting_user_file(self):
+        for value in [None,[],{'targets':[None]},{'targets':{}},{'targets':[{'id':'anki','name':17,'adapter':'anki'}]}]:
+            with self.subTest(value=value):
+                text=json.dumps(value);path=self.root/'config.json';path.write_text(text,encoding='utf-8')
+                candidate=None
+                try:
+                    candidate=ApplicationService(self.root,FakeNative())
+                    self.assertTrue(candidate.config_error)
+                    self.assertEqual(path.read_text(encoding='utf-8'),text)
+                finally:
+                    if candidate:candidate.close()
+
     def test_manual_closed_target_inspection_does_not_restart(self):
         adapter=Mock(reason='用户已关闭'); adapter.spec=selected_spec(self.service.config)
         adapter.discover.return_value='C:/Study/Anki.exe'

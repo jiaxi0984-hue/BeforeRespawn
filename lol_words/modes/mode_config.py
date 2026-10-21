@@ -12,6 +12,8 @@ GENSHIN_HOME = 'https://ys.mihoyo.com/'
 
 
 def migrate_config(saved=None):
+    if saved is not None and not isinstance(saved,dict):
+        raise ValueError('配置根节点必须为对象')
     config = copy.deepcopy(COMMON_DEFAULTS)
     if isinstance(saved, dict):
         config.update(copy.deepcopy(saved))
@@ -25,26 +27,34 @@ def migrate_config(saved=None):
     config.setdefault('targets', [dict(id='anki', name='Anki', adapter='anki',
         command=[config['anki_path']] if config['anki_path'] else [], process_path='',
         title_contains='', window_class='', pin=config['persistent_anki_topmost'])])
+    if not isinstance(config['targets'],list) or any(not isinstance(t,dict) for t in config['targets']):
+        raise ValueError('学习目标必须为对象列表')
     if not any(t.get('id') == 'anki' for t in config['targets']):
         config['targets'].insert(0, dict(id='anki', name='Anki', adapter='anki', command=[],
             process_path='', title_contains='', window_class='', pin=True))
     config['schema_version'] = 2
     validate_config(config)
-    from lol_words.lobby.lobby_config import migrate
-    return migrate(config)
+    # 清理已退役的客户端自动化字段，不影响死亡学习参数与其他用户字段。
+    return {key:value for key,value in config.items() if not key.startswith('lobby_')}
 
 
 def valid_web_url(url):
-    parts = urlsplit(url)
-    return parts.scheme == 'https' and bool(parts.hostname) and not parts.username and not parts.password and parts.port in (None, 443)
+    if not isinstance(url,str):return False
+    try:
+        parts = urlsplit(url)
+        return parts.scheme == 'https' and bool(parts.hostname) and not parts.username and not parts.password and parts.port in (None, 443)
+    except ValueError:return False
 
 
 def validate_target(target):
-    if not target.get('id') or not target.get('name'):
+    if not isinstance(target,dict) or any(not isinstance(target.get(k),str) or not target[k].strip() for k in ('id','name')):
         raise ValueError('目标必须有标识和软件名称')
+    for key in ('title_contains','window_class','process_path'):
+        if key in target and not isinstance(target[key],str):raise ValueError('窗口匹配条件必须为文本')
     if type(target.get('pin', True)) is not bool:
         raise ValueError('目标置顶设置必须为布尔值')
     kind = target.get('adapter')
+    if not isinstance(kind,str):raise ValueError('目标适配方式必须为文本')
     if kind == 'web':
         if not valid_web_url(target.get('url', '')):
             raise ValueError('网页目标需要有效的 HTTPS 地址，不可包含账号或密码')

@@ -203,11 +203,16 @@ class IdentityTests(unittest.TestCase):
             own_snapshot(data)
 
     def test_invalid_respawn_timer_rejected(self):
-        for timer in [-2, 'NaN', 'Infinity']:
+        for timer in [-2, 'NaN', 'Infinity',True]:
             data = self.payload()
             data['allPlayers'][1]['respawnTimer'] = timer
             with self.assertRaises(ValueError):
                 own_snapshot(data)
+
+    def test_missing_dead_respawn_timer_is_not_fabricated_as_zero(self):
+        data=self.payload();data['allPlayers'][1]['isDead']=True
+        data['allPlayers'][1].pop('respawnTimer')
+        with self.assertRaises(ValueError):own_snapshot(data)
 
     def test_localized_champion_uses_stable_identifier(self):
         data = self.payload()

@@ -4,7 +4,7 @@
 
 2026-10-19 按选定的“轻量游戏伴侣风”落地真实 Qt 界面：
 
-- 顶部品牌、模式 / 目标、监测状态与暂停操作始终可见，六个页面使用横向导航；方向键与 Alt + 1–6 可切换。
+- 顶部品牌、模式 / 目标、监测状态与暂停操作始终可见，五个页面使用横向导航；方向键与 Alt + 1–5 可切换。
 - 首页左侧突出当前流程、等待原因和接口提供的复活倒计时；右侧集中显示当前目标及打开、管理操作。
 - “确认死亡 → 切出延迟 → 画面确认 → 显示目标 → 复活返回”只标出后端确认的当前阶段；取消、暂停与接口异常时清除标记，不伪造完成百分比。
 - 窗口切换、临时置顶、本次切换规则分开显示；运行中仍展示实际生效的配置快照，避免把刚保存但未应用的参数误当作当前规则。
@@ -13,11 +13,9 @@
 
 ![游戏伴侣首页](screenshots/01-home-real.png)
 
-## 大厅助手更新
+## 窗口权限
 
-新增第六页“大厅助手”，三个自动功能默认关闭，独立保存并即时生效；全局暂停与退出同时取消大厅任务。正常返回、转让与接受的待实测状态及请求结果边界见 [LOBBY.md](LOBBY.md)。
-
-若客户端以管理员权限运行、工具无法取得连接参数，大厅页会显示权限差异及管理员重启按钮。此入口保留已保存配置，先清理旧任务，再通过 Windows 授权打开同目录的新窗口；新窗口先暂停、只读检查连接。也可运行 `start-admin.cmd`。取消授权不关闭原工具、不恢复自动操作。
+当游戏与工具权限不同导致窗口无法切换时，可先退出旧工具，再使用 `start-admin.cmd`。Windows 标准授权后新窗口保持暂停，点击“继续监测”才开始工作。此入口仅处理本工具的运行权限，不连接客户端大厅或操作组队。
 
 ## 使用方式
 
@@ -25,7 +23,7 @@
 2. 解压到独立目录，退出旧版本工具，双击 `start.cmd`。源码包首次使用先运行 `install.cmd`。
 3. 可双击 `launchers/start.pyw` 使用无控制台入口，前提是系统已将 `.pyw` 关联到 Python。启动错误会显示 Windows 提示并写入本机 `startup-error.log`。
 4. 默认自动监测，学习目标为 Anki。目标首次满足安全切出条件时才自动启动；“打开 / 重新打开目标”为用户主动打开入口。
-5. 暂停快捷键仍为 **Ctrl + Alt + F8**。导航可使用 **Alt + 1–6**；各控件支持 Tab 切换，日志页支持 Ctrl + C 复制所选行。
+5. 暂停快捷键仍为 **Ctrl + Alt + F8**。导航可使用 **Alt + 1–5**；各控件支持 Tab 切换，日志页支持 Ctrl + C 复制所选行。
 
 正常桌面界面不需要 Tk。为保留旧界面回归基线，执行全部测试时仍需 Python 官方发行版附带的 Tk。
 
@@ -55,10 +53,9 @@
 
 ```text
 python -m lol_words / launchers/start.pyw
-  ├─ lol_words/ui/desktop_ui.py                六页 Qt 界面
+  ├─ lol_words/ui/desktop_ui.py                五页 Qt 界面
   └─ lol_words/application/application_service.py
-       ├─ application/monitoring.py            唯一死亡监测编排
-       └─ lobby/lobby_runtime.py               独立大厅线程
+       └─ application/monitoring.py            唯一死亡监测编排
             └─ game/ · modes/ · targets/ · system/
 ```
 
@@ -79,7 +76,7 @@ python -m lol_words / launchers/start.pyw
 
 读取 `config.json`，不存在时读取 `config.example.json`。旧 Anki 路径、置顶设置迁移规则不变，用户添加的目标及未知字段保留；仅保存实际编辑的通用字段，不因显示精度而重写其他小数值。无效配置阻止启动与保存，原文件不会被默认值覆盖。
 
-迁移旧版本时先退出工具，再备份并保留自己的 `config.json` 和 `runtime/`。其中包含用户确认官网、专用浏览器资料和去重状态；这些不在交付包里，也不应分享。配置例子继续使用 `config.example.json` 与 [CONFIG.md](CONFIG.md)，新增大厅字段自动补齐默认值，不覆盖原有参数。
+迁移旧版本时先退出工具，再备份并保留自己的 `config.json` 和 `runtime/`。其中包含用户确认官网、专用浏览器资料和去重状态；这些不在交付包里，也不应分享。配置例子继续使用 `config.example.json` 与 [CONFIG.md](CONFIG.md)，旧客户端自动化字段在读取时退役，其他参数不覆盖。
 
 ## 界面截图
 
@@ -94,8 +91,6 @@ python -m lol_words / launchers/start.pyw
 | 娱乐目标 | [娱乐目标](screenshots/05-entertainment.png) |
 | 通用设置 | [设置](screenshots/06-settings.png) |
 | 运行日志 | [日志](screenshots/07-logs.png) |
-| 大厅助手默认配置 | [大厅助手](screenshots/12-lobby-default.png) |
-| 大厅请求被拒绝（模拟） | [失败提示](screenshots/13-lobby-error-simulated.png) |
 | 接口与目标异常（模拟） | [首页异常](screenshots/08-home-error-simulated.png) |
 | 死亡后延迟阶段（模拟） | [延迟阶段](screenshots/10-death-delay-simulated.png) |
 | 学习期间与复活返回提示（模拟） | [学习阶段](screenshots/11-learning-simulated.png) |
@@ -115,6 +110,6 @@ python tools/package_app.py --with-deps --output ..\outputs\LOL-Words-desktop-ru
 
 `--check` 只检查界面与画面采样，不监测游戏、启动目标或下载。窗口测试使用新建的临时进程，并在检测到真实游戏进程时跳过。截图检查只在没有游戏进程时启动真实等待监测，其他状态明确标为模拟。
 
-运行包保留完整源码、测试、文档、许可与依赖，包括大厅功能所需的 `lol_words/lobby/lcu_api.py`。源码包保留相同项目文件，需安装依赖。包内 `BUILD-MANIFEST.json` 提供每个文件的摘要，旁附 `.sha256`；打包脚本校验 ZIP 完整性与全部文件摘要，不包含个人配置、运行日志、头像定位及浏览器资料。
+运行包保留完整源码、测试、文档、许可与依赖。源码包保留相同项目文件，需安装依赖。包内 `BUILD-MANIFEST.json` 提供每个文件的摘要，旁附 `.sha256`；打包脚本校验 ZIP 完整性与全部文件摘要，不包含个人配置、运行日志、头像定位及浏览器资料。
 
-自动化测试与界面检查不能替代真实游戏验证；真实队友转让、自动接受和正常赛后返回仍待对应场景实测。Qt 环境依据：[官方入门](https://doc.qt.io/qtforpython-6/gettingstarted.html)、[Essentials 包](https://pypi.org/project/PySide6-Essentials/6.12.0/)。
+自动化测试与界面检查不能替代真实游戏验证；真实全屏 / 无边框、特定英雄及第三方学习软件组合仍待对应场景实测。Qt 环境依据：[官方入门](https://doc.qt.io/qtforpython-6/gettingstarted.html)、[Essentials 包](https://pypi.org/project/PySide6-Essentials/6.12.0/)。

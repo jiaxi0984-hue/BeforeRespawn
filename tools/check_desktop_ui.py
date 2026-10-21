@@ -12,7 +12,6 @@ from PySide6.QtGui import QFont
 from lol_words.ui.desktop_ui import MainWindow
 from lol_words.application.application_service import ApplicationService
 from lol_words.ui.ui_state import RuntimeState
-from lol_words.lobby.lobby_flow import LobbyStatus
 
 
 def main():
@@ -63,16 +62,8 @@ def main():
             window.show_notice('模拟状态 · 展示学习期间与返回提示，不代表真实游戏。')
             window.apply_state(RuntimeState(monitoring='正在监测',game='对局中',phase='学习中',reason='接近复活时自动返回游戏。',target_name='Anki',target_state='窗口已唯一识别',switch_result='目标已显示',pin='持续置顶正常（不改变键盘焦点）',respawn=15.4))
             shot('11-learning-simulated.png')
-            window.navigation.setCurrentRow(5)
-            window.apply_state(RuntimeState(monitoring='已暂停',game='等待游戏',phase='已暂停',
-                reason='截图检查已停止监测；不操作真实客户端。',target_name='Anki'))
-            window.apply_lobby_state(LobbyStatus(action='大厅助手已关闭',detail='三个功能默认关闭；可分别开启并保存，暂未连接真实客户端。'))
-            shot('12-lobby-default.png')
-            window.lobby_notice.setText('模拟状态 · 展示请求被拒绝后的提示，不代表真实游戏实测。')
-            window.apply_lobby_state(LobbyStatus('客户端已连接','赛后结算','返回房间请求被拒绝','模拟状态（非真实对局） · 客户端请求未完成（HTTP 403）；本周期不自动重发，请手动处理。'))
-            shot('13-lobby-error-simulated.png')
             results=dict(qt_platform=app.platformName(),device_pixel_ratio=window.devicePixelRatioF(),
-                logical_size=[window.width(),window.height()],screenshots=13,
+                logical_size=[window.width(),window.height()],screenshots=11,
                 live_game_verified=False,downloads_performed=False,
                 minimum_window=[window.minimumWidth(),window.minimumHeight()])
             (args.output/'ui-check.json').write_text(json.dumps(results,ensure_ascii=False,indent=2),encoding='utf-8')

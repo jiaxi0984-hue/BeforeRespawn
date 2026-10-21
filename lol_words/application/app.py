@@ -2,7 +2,6 @@
 from lol_words.system import runtime_bootstrap
 import argparse
 import sys
-from pathlib import Path
 from lol_words.system.paths import ROOT
 
 
@@ -10,7 +9,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--check', action='store_true', help='只检查 Qt 界面与采样，不启动监测或目标')
     parser.add_argument('--paused', action='store_true', help='启动后保持暂停')
-    parser.add_argument('--lobby', action='store_true', help='打开大厅页并只读检查连接')
     parser.add_argument('--admin', action='store_true', help='通过 Windows 授权以管理员权限打开，先保持暂停')
     args = parser.parse_args()
     if args.admin:
@@ -20,7 +18,7 @@ def main():
             except ValueError as exc:
                 print(str(exc));return 1
             return 0
-        args.paused,args.lobby=True,True
+        args.paused=True
     try:
         from PySide6.QtWidgets import QApplication
         from PySide6.QtGui import QFont
@@ -41,10 +39,6 @@ def main():
     if args.check:
         window.timer.stop()  # 纯界面检查不发起目标发现线程。
     window.show()
-    if args.lobby and not args.check:
-        from PySide6.QtCore import QTimer
-        window.navigation.setCurrentRow(5)
-        QTimer.singleShot(0,service.refresh_lobby)
     if args.check:
         from lol_words.system.capture import SceneCapture
         app.processEvents()

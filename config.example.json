@@ -37,11 +37,5 @@
       "url": "https://bbdc.cn/lexis/login",
       "pin": true
     }
-  ],
-  "lobby_auto_return": false,
-  "lobby_auto_promote": false,
-  "lobby_auto_accept": false,
-  "lobby_accept_delay": 1.0,
-  "lobby_return_delay": 3.0,
-  "lobby_preferred_member": ""
+  ]
 }

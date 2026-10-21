@@ -14,8 +14,6 @@ from PySide6.QtWidgets import (QAbstractItemView, QAbstractSpinBox, QApplication
     QTableView, QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget)
 from lol_words.modes.mode_config import selected_spec, validate_target, WEBSITES
 from lol_words.ui.ui_state import RuntimeState
-from lol_words.lobby.lobby_flow import LobbyStatus
-from lol_words.system.privileges import restart_elevated
 from lol_words.system.paths import ROOT
 
 
@@ -143,10 +141,6 @@ def line_icon(index):
     elif index == 3:
         for y, x in [(6, 9), (12, 16), (18, 8)]:
             painter.drawLine(3, y, 21, y); painter.drawEllipse(x-2, y-2, 4, 4)
-    elif index == 5:
-        painter.drawRoundedRect(3, 6, 18, 13, 3, 3)
-        painter.drawLine(6, 12, 12, 12); painter.drawLine(9, 9, 9, 15)
-        painter.drawEllipse(15, 10, 2, 2); painter.drawEllipse(17, 13, 2, 2)
     else:
         painter.drawRoundedRect(5, 3, 14, 18, 2, 2)
         for y in [8, 12, 16]: painter.drawLine(8, y, 16, y)
@@ -266,8 +260,6 @@ class MainWindow(QMainWindow):
         self.service = service
         self.state = RuntimeState()
         self.closing = False
-        self.admin_restart_in_progress=False
-        self.admin_restart_submitted=False
         self.hotkey_down = False
         self.detected, self.visible_apps, self.site_items = [], [], []
         self.search_name, self.search_kind = '', 'catalog'
@@ -316,17 +308,17 @@ class MainWindow(QMainWindow):
         self.navigation.setResizeMode(QListView.ResizeMode.Adjust); self.navigation.setFixedHeight(50)
         self.navigation.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.navigation.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        names = ['运行首页', '学习目标', '娱乐目标', '通用设置', '运行日志', '大厅助手']
+        names = ['运行首页', '学习目标', '娱乐目标', '通用设置', '运行日志']
         for index, name in enumerate(names):
             item = QListWidgetItem(line_icon(index), name); item.setSizeHint(QSize(142, 44)); self.navigation.addItem(item)
         self.navigation.setAccessibleName('主导航'); nav_layout.addWidget(self.navigation); body.addWidget(navigation_bar)
         self.stack = QStackedWidget(); body.addWidget(self.stack, 1)
-        self.home_page(); self.learning_page(); self.entertainment_page(); self.settings_page(); self.logs_page(); self.lobby_page()
+        self.home_page(); self.learning_page(); self.entertainment_page(); self.settings_page(); self.logs_page()
         self.navigation.currentRowChanged.connect(self.stack.setCurrentIndex); self.navigation.setCurrentRow(0)
         footer = QHBoxLayout(); footer.setContentsMargins(28, 5, 28, 9)
         footer.addWidget(label('活着认真操作，复活及时归队。', 'muted', wrap=False)); footer.addStretch()
-        footer.addWidget(label('Ctrl + Alt + F8 暂停  ·  Alt + 1–6 导航', 'muted', wrap=False)); body.addLayout(footer)
-        for i in range(6):
+        footer.addWidget(label('Ctrl + Alt + F8 暂停  ·  Alt + 1–5 导航', 'muted', wrap=False)); body.addLayout(footer)
+        for i in range(self.navigation.count()):
             sc = QShortcut(QKeySequence(f'Alt+{i+1}'), self)
             sc.activated.connect(lambda i=i: self.navigation.setCurrentRow(i))
         self.copy_shortcut = QShortcut(QKeySequence.StandardKey.Copy, self.log_table)
@@ -385,8 +377,6 @@ class MainWindow(QMainWindow):
         recent_header = hrow(label('最近事件', 'heading'), None, button('查看全部', lambda: self.navigation.setCurrentRow(4)))
         layout.addLayout(recent_header)
         self.recent_label = label('尚无运行事件。', 'muted'); self.recent_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse); layout.addWidget(self.recent_label)
-        self.lobby_summary=label('大厅助手：三个功能均未开启。','muted',wrap=False)
-        layout.addLayout(hrow(self.lobby_summary,None,button('大厅助手',lambda:self.navigation.setCurrentRow(5))))
         layout.addStretch()
 
     def update_home_layout(self):
@@ -503,89 +493,6 @@ class MainWindow(QMainWindow):
         self.player.textEdited.connect(lambda _: self.settings_edited('player_id'))
         layout.addStretch()
 
-    def lobby_page(self):
-        _,layout=self.page('大厅助手 · 待实测','仅保留正常赛后返回、转让队长、接受对局；三项基本功能尚待真实游戏验证。')
-        self.lobby_dirty=False;self.lobby_state=LobbyStatus()
-        frame,inner=panel();layout.addWidget(frame)
-        self.lobby_connection=label('尚未检查客户端','heading')
-        self.lobby_phase=label('等待客户端','muted');self.lobby_action=label('大厅助手已关闭')
-        self.lobby_detail=label('首次使用请分别开启需要的功能。','muted')
-        inner.addWidget(self.lobby_connection);inner.addWidget(self.lobby_phase);inner.addWidget(self.lobby_action);inner.addWidget(self.lobby_detail)
-        self.lobby_read_button=button('读取当前房间（只读）',self.service.refresh_lobby)
-        self.lobby_save_button=button('保存大厅设置',self.save_lobby_settings,True)
-        inner.addLayout(hrow(self.lobby_read_button,None,self.lobby_save_button))
-        self.admin_restart_button=button('以管理员权限重新启动',self.request_admin_restart)
-        self.admin_restart_button.setToolTip('先暂停并清理任务，再由 Windows 请求授权；新窗口保持暂停，只读检查大厅连接。')
-        inner.addWidget(self.admin_restart_button);self.admin_restart_button.hide()
-        options,content=panel();layout.addWidget(options)
-        self.auto_return=QCheckBox('对局结束后自动返回组队房间')
-        self.auto_promote=QCheckBox('本人是队长时，自动转让给可接任队友')
-        self.auto_accept=QCheckBox('自动接受匹配到的对局')
-        for control in [self.auto_return,self.auto_promote,self.auto_accept]:content.addWidget(control)
-        self.preferred_member=QComboBox();self.preferred_member.addItem('自动：当前列表首个可接任队友','')
-        content.addLayout(hrow(label('接任队友'),self.preferred_member))
-        content.addWidget(label('默认按客户端成员顺序选择，跳过本人、机器人与观战者。指定队友未出现时等待，不转给其他人。','muted'))
-        self.lobby_accept_delay=QDoubleSpinBox();self.lobby_accept_delay.setRange(0,10);self.lobby_accept_delay.setDecimals(1);self.lobby_accept_delay.setSuffix(' 秒')
-        self.lobby_return_delay=QDoubleSpinBox();self.lobby_return_delay.setRange(0,30);self.lobby_return_delay.setDecimals(1);self.lobby_return_delay.setSuffix(' 秒')
-        self.lobby_rules_hint=label('','muted');content.addWidget(self.lobby_rules_hint)
-        self.lobby_advanced_toggle=QCheckBox('高级：调整等待时间');content.addWidget(self.lobby_advanced_toggle)
-        self.lobby_advanced=QWidget();form=QFormLayout(self.lobby_advanced);form.setVerticalSpacing(12);form.setContentsMargins(0,0,0,0)
-        for title,control in [('接受对局前等待',self.lobby_accept_delay),('赛后返回前等待',self.lobby_return_delay)]:form.addRow(title,control)
-        content.addWidget(self.lobby_advanced);self.lobby_advanced.hide();self.lobby_advanced_toggle.toggled.connect(self.lobby_advanced.setVisible)
-        self.lobby_notice=label('默认配置中三个自动功能均关闭。已移除头像点击和跳过结算；客户端卡加载时请手动处理。','notice');layout.addWidget(self.lobby_notice)
-        for control in [self.auto_return,self.auto_promote,self.auto_accept]:control.toggled.connect(self.lobby_edited)
-        for control in [self.lobby_accept_delay,self.lobby_return_delay]:control.valueChanged.connect(self.lobby_edited)
-        self.preferred_member.activated.connect(self.lobby_edited)
-        layout.addStretch()
-
-    def lobby_edited(self,*args):
-        self.lobby_dirty=True;self.lobby_save_button.setText('保存大厅设置 · 未保存')
-
-    def refresh_lobby_members(self,members):
-        preferred=self.preferred_member.currentData() if self.lobby_dirty else self.service.config['lobby_preferred_member']
-        self.preferred_member.blockSignals(True);self.preferred_member.clear();self.preferred_member.addItem('自动：当前列表首个可接任队友','')
-        for key,name,leader,eligible in members:
-            if eligible and not leader:self.preferred_member.addItem(name,key)
-        if preferred and self.preferred_member.findData(preferred)<0:self.preferred_member.addItem('指定队友（当前不在房间）',preferred)
-        self.preferred_member.setCurrentIndex(max(0,self.preferred_member.findData(preferred)))
-        self.preferred_member.blockSignals(False)
-
-    def refresh_lobby_config(self):
-        if self.lobby_dirty:return
-        config=self.service.config
-        self.lobby_rules_hint.setText(f"已保存参数：接受前 {config['lobby_accept_delay']:g} 秒；赛后返回前 {config['lobby_return_delay']:g} 秒。")
-        for control,key in [(self.auto_return,'lobby_auto_return'),(self.auto_promote,'lobby_auto_promote'),(self.auto_accept,'lobby_auto_accept')]:
-            control.blockSignals(True);control.setChecked(config[key]);control.blockSignals(False)
-        for control,key in [(self.lobby_accept_delay,'lobby_accept_delay'),(self.lobby_return_delay,'lobby_return_delay')]:
-            control.blockSignals(True);control.setValue(config[key]);control.blockSignals(False)
-        self.refresh_lobby_members(self.lobby_state.members)
-
-    def save_lobby_settings(self):
-        values=dict(lobby_auto_return=self.auto_return.isChecked(),lobby_auto_promote=self.auto_promote.isChecked(),lobby_auto_accept=self.auto_accept.isChecked(),
-            lobby_preferred_member=self.preferred_member.currentData() or '',
-            lobby_accept_delay=self.lobby_accept_delay.value(),lobby_return_delay=self.lobby_return_delay.value())
-        if self.save_change(values):
-            self.lobby_dirty=False;self.lobby_save_button.setText('保存大厅设置')
-            self.refresh_lobby_config()
-            self.lobby_notice.setText('已保存，即时生效。旧设置下尚未执行的动作取消；已提交动作只回读确认，不连续重发。' if self.service.running else '已保存，继续监测后执行。')
-            self.append_log('大厅助手设置已保存；未加入英雄选择或自动开始匹配。')
-
-    def apply_lobby_state(self,value):
-        self.lobby_state=value
-        self.lobby_connection.setText(value.connection);self.lobby_phase.setText(value.phase)
-        self.lobby_action.setText(value.action);self.lobby_detail.setText(value.detail)
-        self.lobby_summary.setText('大厅助手：'+value.action.removeprefix('大厅助手'))
-        self.refresh_lobby_members(value.members)
-        self.admin_restart_button.setVisible(value.needs_admin or self.admin_restart_in_progress)
-
-    def request_admin_restart(self):
-        if self.admin_restart_in_progress or self.closing:return
-        if self.lobby_dirty or self.dirty_settings:
-            self.lobby_notice.setText('有尚未保存的设置，请先保存大厅设置与通用设置，再重新启动。');return
-        self.admin_restart_in_progress=True;self.admin_restart_submitted=False
-        self.admin_restart_button.setEnabled(False)
-        self.service.stop()
-        self.lobby_notice.setText('正在取消任务并恢复窗口。随后 Windows 会请求管理员授权；新窗口先暂停并只读检查连接。')
 
     @staticmethod
     def setting_field(widget, hint):
@@ -594,7 +501,7 @@ class MainWindow(QMainWindow):
 
     def logs_page(self):
         _, layout = self.page('运行日志', '只记录状态变化与必要诊断，不重复记录每次轮询。', scroll=False)
-        self.log_categories = QComboBox(); self.log_categories.addItems(['全部类别', '监测', '大厅', '模式', '死亡', '等待', '目标', '窗口', '返回', '配置', '提示'])
+        self.log_categories = QComboBox(); self.log_categories.addItems(['全部类别', '监测', '模式', '死亡', '等待', '目标', '窗口', '返回', '配置', '提示'])
         self.log_search = QLineEdit(); self.log_search.setPlaceholderText('筛选日志内容')
         layout.addLayout(hrow(self.log_categories, self.log_search, button('复制所选', self.copy_log)))
         self.log_model = QStandardItemModel(0, 3, self); self.log_model.setHorizontalHeaderLabels(['时间', '类别', '说明'])
@@ -634,7 +541,6 @@ class MainWindow(QMainWindow):
             self.display.blockSignals(True); self.display.setCurrentIndex(self.display.findData(config['game_display_mode'])); self.display.blockSignals(False)
             self.pin.blockSignals(True); self.pin.setChecked(config['persistent_target_topmost']); self.pin.blockSignals(False)
             self.player.setText(config['player_id'])
-        self.refresh_lobby_config()
 
     def show_notice(self, message, error=False):
         self.notice.setObjectName('warning' if error else 'notice'); self.notice.setText(message); self.notice.show()
@@ -786,7 +692,6 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def category(text):
-        if text.startswith('大厅助手'):return '大厅'
         for terms, category in [(['返回'], '返回'), (['模式', '旧目标'], '模式'), (['本人死亡已确认'], '死亡'), (['切出等待', '灰屏', '采样'], '等待'), (['置顶', '切换', '窗口状态'], '窗口'), (['目标', '主窗口', '软件'], '目标'), (['配置', '设置'], '配置'), (['监测', '对局', '接口'], '监测')]:
             if any(word in text for word in terms): return category
         return '提示'
@@ -825,18 +730,7 @@ class MainWindow(QMainWindow):
 
     def handle_job(self, key, status, result):
         busy, error = status == 'busy', status == 'error'
-        if key=='elevation':
-            if busy:self.admin_restart_button.setText('等待 Windows 授权…')
-            else:
-                self.admin_restart_in_progress=False;self.admin_restart_submitted=False
-                self.admin_restart_button.setEnabled(True);self.admin_restart_button.setText('以管理员权限重新启动')
-                self.lobby_notice.setText(result)
-                if not error:self.close()
-        elif key=='lobby_read':
-            self.lobby_read_button.setEnabled(not busy);self.lobby_read_button.setText('正在读取…' if busy else '读取当前房间（只读）')
-            if error:self.lobby_notice.setText(result)
-            elif not busy:self.apply_lobby_state(result)
-        elif key == 'scan':
+        if key == 'scan':
             self.scan_button.setEnabled(not busy); self.scan_button.setText('正在检测…' if busy else '重新检测')
             if busy: self.scan_status.setText('正在读取安装登记、快捷方式与实际运行程序…')
             elif error:
@@ -872,7 +766,6 @@ class MainWindow(QMainWindow):
             except queue.Empty: break
             if kind == 'log': self.append_log(value)
             elif kind == 'state': self.apply_state(value)
-            elif kind == 'lobby_state': self.apply_lobby_state(value)
             elif kind == 'config': self.refresh_config()
             elif kind == 'selection':
                 self.target_label.setText(value); self.target_status.setText('正在检查新目标'); self.target_hint.hide()
@@ -890,11 +783,8 @@ class MainWindow(QMainWindow):
         running = self.service.running
         stopping = running and self.service.stop_event.is_set()
         self.pause_button.setText('正在暂停…' if stopping else ('暂停监测' if running else '继续监测'))
-        self.pause_button.setEnabled(not stopping and not self.service.config_error and not self.closing and not self.admin_restart_in_progress)
-        if self.admin_restart_in_progress and not self.admin_restart_submitted and not self.closing and self.service.settled():
-            self.admin_restart_submitted=True
-            self.service.submit('elevation',lambda:restart_elevated(self.service.root))
-        if time.monotonic() - self.last_inspection > 2 and not self.closing and not self.admin_restart_in_progress:
+        self.pause_button.setEnabled(not stopping and not self.service.config_error and not self.closing)
+        if time.monotonic() - self.last_inspection > 2 and not self.closing:
             self.last_inspection = time.monotonic(); self.service.inspect_target()
         if self.closing and self.service.settled():
             self.timer.stop(); self.close()

@@ -17,6 +17,16 @@ from lol_words.modes.official_download import OfficialDownload, INSPECT_PC, clic
 from lol_words.modes.penalty import DeathLedger
 
 
+class RetiredSettingsTests(unittest.TestCase):
+    def test_removed_client_automation_settings_do_not_survive_migration(self):
+        saved={'death_switch_delay':5.25,'return_before_seconds':1.75,'my_setting':9,
+            'lobby_auto_accept':True,'lobby_auto_return':True,'lobby_auto_promote':True}
+        config=migrate_config(saved)
+        self.assertFalse(any(key.startswith('lobby_') for key in config))
+        self.assertEqual(config['death_switch_delay'],5.25);self.assertEqual(config['return_before_seconds'],1.75)
+        self.assertEqual(config['my_setting'],9);self.assertTrue(saved['lobby_auto_accept'])
+
+
 class TempCase(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(dir=Path(__file__).parent)

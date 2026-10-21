@@ -47,6 +47,7 @@ class App:
         self.config_error = ''
         try:
             saved = json.loads(settings.read_text(encoding='utf-8-sig'))
+            if not isinstance(saved,dict):raise ValueError('配置根节点必须为对象')
             self.config = migrate_config(saved)
         except FileNotFoundError:
             self.config = migrate_config()

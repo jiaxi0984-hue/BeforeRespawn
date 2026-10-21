@@ -165,6 +165,10 @@ def own_snapshot(payload: dict, identity: str = "") -> tuple[str, Snapshot]:
     player = matches[0]
     if type(player.get("isDead")) is not bool:
         raise ValueError("游戏未返回有效死亡状态，暂停切换")
+    if player['isDead'] and 'respawnTimer' not in player:
+        raise ValueError('游戏未提供复活倒计时，暂停切换')
+    if isinstance(player.get('respawnTimer'),bool):
+        raise ValueError('复活倒计时无效，暂停切换')
     timer = float(player.get("respawnTimer", 0))
     if timer < 0 or timer != timer or timer == float("inf"):
         raise ValueError("复活倒计时无效，暂停切换")
