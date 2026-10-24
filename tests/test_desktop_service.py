@@ -11,7 +11,7 @@ import unittest
 from unittest.mock import Mock, patch
 from PySide6.QtCore import Qt, QRect
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QDialog, QPushButton
+from PySide6.QtWidgets import QApplication, QDialog, QLabel, QPushButton
 from lol_words.application.application_service import ApplicationService
 from lol_words.ui.desktop_ui import MainWindow, DownloadPrompt, TargetEditor
 from lol_words.modes.mode_config import migrate_config, selected_spec
@@ -227,6 +227,13 @@ class QtCase(unittest.TestCase):
     def tearDown(self):
         self.window.closing=True;self.service.close();QT.processEvents();self.window.close();self.window.deleteLater();QT.processEvents()
         ServiceCase.tearDown(self)
+
+    def test_window_and_header_use_before_respawn_brand(self):
+        self.assertEqual(self.window.windowTitle(), '泉水时间管理 · BeforeRespawn')
+        texts = [widget.text() for widget in self.window.findChildren(QLabel)]
+        self.assertIn('BeforeRespawn  /  游戏伴侣', texts)
+        self.assertNotIn('LOL-WORDS  /  游戏伴侣', texts)
+        self.assertEqual(self.window.navigation.count(), 5)
 
     def test_home_reflects_independent_real_service_state(self):
         state=RuntimeState(monitoring='接口暂不可用',game='对局中',phase='等待接口恢复',reason='过期任务已取消',

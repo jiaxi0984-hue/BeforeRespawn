@@ -266,7 +266,7 @@ class MainWindow(QMainWindow):
         self.last_inspection = 0
         self.pending_open = False
         self.prompts = []
-        self.setWindowTitle('泉水时间管理 · LOL Words')
+        self.setWindowTitle('泉水时间管理 · BeforeRespawn')
         self.setWindowIcon(line_icon(0))
         self.resize(1120, 780); self.setMinimumSize(880, 640)
         screen = QApplication.primaryScreen()
@@ -295,7 +295,7 @@ class MainWindow(QMainWindow):
         bar = QFrame(); bar.setObjectName('statusbar'); bl = QHBoxLayout(bar); bl.setContentsMargins(28, 16, 28, 16); bl.setSpacing(18)
         identity = QVBoxLayout(); identity.setSpacing(1)
         identity.addWidget(label('泉水时间管理', 'brand'))
-        identity.addWidget(label('LOL WORDS  /  游戏伴侣', 'muted', wrap=False))
+        identity.addWidget(label('BeforeRespawn  /  游戏伴侣', 'muted', wrap=False))
         bl.addLayout(identity)
         self.bar_target = label('正在读取配置', 'muted'); self.bar_target.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.monitor_badge = label('●  已暂停', wrap=False)

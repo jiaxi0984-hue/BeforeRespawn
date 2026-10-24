@@ -1,10 +1,10 @@
-# Windows 便携程序构建与验收
+# BeforeRespawn · Windows 便携程序构建与验收
 
 ## 三种包，不要混淆
 
 | 类型 | 启动 | 是否需要系统 Python |
 |---|---|---|
-| Windows x64 便携版 | 完整解压后双击 `LOL-Words.exe` | 不需要 |
+| Windows x64 便携版 | 完整解压后双击 `BeforeRespawn.exe` | 不需要 |
 | 源码包 | `install.cmd` 安装依赖，再运行 `start.cmd` | 需要 Python 3.14 x64 |
 | 含 `_deps` 的 Python 运行包 | `start.cmd` | 仍需 Python 3.14 x64 |
 
@@ -12,7 +12,7 @@
 
 解压到可写的独立目录，不要直接在压缩包内运行。配置、日志和专用浏览器资料保存在 EXE 旁。升级前退出旧工具，备份并单独迁移自己的 `config.json` 和 `runtime/`；不要分享专用浏览器资料，也不要将新版直接覆盖解压到个人资料目录。
 
-默认自动监测，可用 `LOL-Words.exe --paused` 暂停启动。`LOL-Words.exe --admin` 由用户主动请求 Windows 授权，授权后保持暂停；不强制管理员常驻。直接右键“以管理员身份运行”而不带参数时仍按默认自动监测。
+默认自动监测，可用 `BeforeRespawn.exe --paused` 暂停启动。`BeforeRespawn.exe --admin` 由用户主动请求 Windows 授权，授权后保持暂停；不强制管理员常驻。直接右键“以管理员身份运行”而不带参数时仍按默认自动监测。
 
 ## 构建
 
@@ -23,7 +23,7 @@ python -m venv .build-env
 & .\.build-env\Scripts\python.exe -m pip install -r requirements-build.txt
 # 如果已有 install.cmd 安装好的 _deps，可以跳过这一行。
 & .\.build-env\Scripts\python.exe -m pip install --target _deps -r requirements.txt
-& .\.build-env\Scripts\python.exe -B tools/build_exe.py --output ..\outputs\LOL-Words-Windows-x64-portable.zip
+& .\.build-env\Scripts\python.exe -B tools/build_exe.py --output ..\outputs\BeforeRespawn-Windows-x64-portable.zip
 ```
 
 构建依赖锁定：PyInstaller 6.22.3、hooks 2026.9；运行依赖锁定见 `requirements.txt`。源码包包含 `build_config/windows.spec`、`requirements-build.txt`、构建与验包脚本。没有 Git 时仍可构建，构建清单中的 Git 元数据为 `null`；有 Git 时只记录本仓库基准和工作区是否修改，不冒用父目录仓库。
@@ -33,23 +33,34 @@ python -m venv .build-env
 已有本工具 PyInstaller 输出目录时可使用：
 
 ```powershell
-& .\.build-env\Scripts\python.exe -B tools/build_exe.py --existing-dist <新构建的LOL-Words目录> --output ..\outputs\新文件名-portable.zip
+& .\.build-env\Scripts\python.exe -B tools/build_exe.py --existing-dist <新构建的BeforeRespawn目录> --output ..\outputs\新文件名-portable.zip
 ```
 
 脚本拒绝覆盖已有 ZIP、校验文件或收集目录，拒绝混入个人配置、运行资料、测试和历史归档；Windows 文件名大小写差异不能绕过检查。资源和第三方许可随包收集。自检在副本上进行，不将测试日志写入交付目录。
 
 ## 强制启动验收与独立验包
 
-出包前必须执行 `--check`，确认冻结模式、5 页界面、资源、有效画面采样以及数据根目录跟随 EXE。任一失败均不生成交付 ZIP，不能仅凭 ZIP 文件存在或 `.sha256` 一致就声称程序可运行。
+出包前必须执行 `--check`，确认冻结模式、5 页界面、资源、有效画面采样以及数据根目录跟随 EXE。新包还必须报告 `application_name=BeforeRespawn` 和含新品牌的窗口标题。任一失败均不生成交付 ZIP，不能仅凭 ZIP 文件存在或 `.sha256` 一致就声称程序可运行。
 
 ```powershell
-python -B tools/verify_exe.py ..\outputs\LOL-Words-Windows-x64-portable.zip --report ..\outputs\portable-verification.json
+python -B tools/verify_exe.py ..\outputs\BeforeRespawn-Windows-x64-portable.zip --report ..\outputs\portable-verification.json
 python -B -m unittest discover -s tests -q
 ```
 
 独立验包工具检查 ZIP 路径、完整性、文件清单与全部摘要，再在新的中文 / 空格目录解压副本，以无源码工作目录、移除外部 Python 与 Qt 环境变量、仅保留 Windows 系统 PATH 的环境启动。报告文件已存在时拒绝覆盖。
 
 包内 `BUILD-MANIFEST.json` 保存逐文件 SHA-256，`VALIDATION.json` 保存强制自检结果，ZIP 旁附 `.zip.sha256`。`--check` 不监测游戏、不启动目标、不下载内容。
+
+当前构建统一使用 `BeforeRespawn/BeforeRespawn.exe`。验包工具仍兼容历史 `LOL-Words/LOL-Words.exe`，但拒绝同时包含两个品牌 EXE、两个顶层目录或目录与 EXE 混名。已发布的 `v2026.10.24` 及旧附件不改名、不覆盖；旧包兼容验收不等于新品牌构建验收。内部 `lol_words` 包、兼容环境变量和配置存储位置不变。
+
+## 2026-10-24 英文名称统一验证
+
+- 英文品牌改为 **BeforeRespawn**，中文名称、五页导航、内部 Python 包名和配置存储位置不变。
+- **306 项自动化回归通过，0 失败、0 错误、0 跳过**；包含新品牌标识必需、历史包兼容、双 EXE 和混名 ZIP 拒绝测试。
+- Windows Qt 渲染检查生成 11 张截图（含小窗口检查），更新文档中已有的 10 张截图；使用隔离配置，没有启动实际学习软件或网站。
+- 从更新后的 spec 重新构建 `BeforeRespawn-Windows-x64-20261024-portable.zip`，不是将旧 EXE 改名。出包自检及重新解压验包均通过，应用名为 `BeforeRespawn`，窗口标题为 `泉水时间管理 · BeforeRespawn`，保留 5 页界面，DXGI 有效采样 20,736 字节。
+- 独立验收覆盖中文 / 空格目录、无源码工作目录、移除外部 Python / Qt 环境变量、ZIP 清单及逐文件 SHA-256；历史 2026-10-23 便携 ZIP 也通过新版验包工具，摘要保持不变。
+- 本轮改名检查没有操作真实游戏、实际 Anki 或娱乐网站，也不是全新无 Python Windows 虚拟机测试；下节中的交互及替身测试属于改名前版本的既有证据。
 
 ## 已解决的冻结问题
 

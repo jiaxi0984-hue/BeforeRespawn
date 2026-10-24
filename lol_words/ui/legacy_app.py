@@ -75,7 +75,7 @@ class App:
             root.after(350, self.start)
 
     def build(self):
-        self.root.title('LOL-Words-zhandoushuang · 学习 / 娱乐')
+        self.root.title('BeforeRespawn · 学习 / 娱乐')
         self.root.geometry('1040x880')
         self.root.minsize(1000, 800)
         style=ttk.Style()

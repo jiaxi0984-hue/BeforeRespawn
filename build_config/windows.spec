@@ -22,7 +22,7 @@ a=Analysis([str(ROOT/'launchers/start.pyw')],pathex=[str(ROOT),str(ROOT/'_deps')
 # ICU is supplied by supported Windows 10/11; never redistribute a PATH copy.
 a.binaries=[item for item in a.binaries if Path(item[0]).name.lower() not in {'icuuc.dll','icuin.dll'}]
 pyz=PYZ(a.pure)
-exe=EXE(pyz,a.scripts,[],exclude_binaries=True,name='LOL-Words',debug=False,
+exe=EXE(pyz,a.scripts,[],exclude_binaries=True,name='BeforeRespawn',debug=False,
     bootloader_ignore_signals=False,strip=False,upx=False,console=os.environ.get('LOL_WORDS_BUILD_CONSOLE')=='1',
     disable_windowed_traceback=False,uac_admin=False)
-coll=COLLECT(exe,a.binaries,a.datas,strip=False,upx=False,name='LOL-Words')
+coll=COLLECT(exe,a.binaries,a.datas,strip=False,upx=False,name='BeforeRespawn')

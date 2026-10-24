@@ -9,12 +9,12 @@ from lol_words.system.privileges import restart_elevated
 
 class FrozenRuntimeTests(unittest.TestCase):
     def test_frozen_data_root_follows_executable_instead_of_extraction_directory(self):
-        with patch('sys.frozen',True,create=True),patch('sys.executable',r'E:\便携 程序\LOL-Words.exe'):
+        with patch('sys.frozen',True,create=True),patch('sys.executable',r'E:\便携 程序\BeforeRespawn.exe'):
             self.assertEqual(application_root(),Path(r'E:\便携 程序').resolve())
 
     def test_frozen_admin_restart_does_not_require_python_or_source_launcher(self):
         with tempfile.TemporaryDirectory(dir=Path(__file__).parent,prefix='程序 空格') as folder:
-            root=Path(folder);executable=root/'LOL-Words.exe';executable.write_bytes(b'fixture-not-executable')
+            root=Path(folder);executable=root/'BeforeRespawn.exe';executable.write_bytes(b'fixture-not-executable')
             shell=Mock();shell.ShellExecuteW.return_value=42
             with patch('sys.frozen',True,create=True),patch('sys.executable',str(executable)),patch('lol_words.system.privileges.C.WinDLL',return_value=shell):
                 restart_elevated(root)

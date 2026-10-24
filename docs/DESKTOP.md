@@ -1,4 +1,4 @@
-# Windows 桌面版说明
+# BeforeRespawn · Windows 桌面版说明
 
 ## 游戏伴侣风格
 
@@ -15,11 +15,11 @@
 
 ## 窗口权限
 
-当游戏与工具权限不同导致窗口无法切换时，可先退出旧工具，再使用 `start-admin.cmd`（源码 / Python 包）或运行 `LOL-Words.exe --admin`（便携版）；Windows 标准授权后新窗口保持暂停，点击“继续监测”才开始工作。便携版也可右键 EXE 选择“以管理员身份运行”，但直接右键启动沿用默认自动监测；需要暂停启动时用 `--paused`。这些入口仅处理本工具权限，不连接客户端大厅或操作组队。
+当游戏与工具权限不同导致窗口无法切换时，可先退出旧工具，再使用 `start-admin.cmd`（源码 / Python 包）或运行 `BeforeRespawn.exe --admin`（便携版）；Windows 标准授权后新窗口保持暂停，点击“继续监测”才开始工作。便携版也可右键 EXE 选择“以管理员身份运行”，但直接右键启动沿用默认自动监测；需要暂停启动时用 `--paused`。这些入口仅处理本工具权限，不连接客户端大厅或操作组队。
 
 ## 使用方式
 
-1. **便携 EXE 包**不需要安装 Python：完整解压到可写独立目录，双击 `LOL-Words.exe`，保留整个 `_internal` 和资源目录。
+1. **便携 EXE 包**不需要安装 Python：完整解压到可写独立目录，双击 `BeforeRespawn.exe`，保留整个 `_internal` 和资源目录。
 2. **源码 / 含依赖 Python 包**需要 Windows 10/11 64 位上的 **Python 3.14 64 位**，双击 `start.cmd`；源码包首次使用先运行 `install.cmd`。含 `_deps` 的包可以跳过依赖安装，但并非免 Python 便携版。
 3. Python 包可双击 `launchers/start.pyw` 使用无控制台入口，前提是系统已将 `.pyw` 关联到 Python。启动错误写入本机 `startup-error.log`。升级前退出旧工具并备份个人配置与 `runtime/`，不要在个人资料目录上覆盖解压。
 4. 默认自动监测，学习目标为 Anki。目标首次满足安全切出条件时才自动启动；“打开 / 重新打开目标”为用户主动打开入口。
@@ -104,8 +104,8 @@ python tools/check_desktop_ui.py --output ..\outputs\desktop-ui\150
 python tools/check_target_window.py
 python tools/check_async_return.py
 python tools/check_borderless_return.py
-python tools/package_app.py --output ..\outputs\LOL-Words-desktop-source.zip
-python tools/package_app.py --with-deps --output ..\outputs\LOL-Words-desktop-runtime.zip
+python tools/package_app.py --output ..\outputs\BeforeRespawn-desktop-source.zip
+python tools/package_app.py --with-deps --output ..\outputs\BeforeRespawn-desktop-runtime.zip
 ```
 
 `--check` 只检查界面与画面采样，不监测游戏、启动目标或下载。窗口测试使用新建的临时进程，并在检测到真实游戏进程时跳过。截图检查只在没有游戏进程时启动真实等待监测，其他状态明确标为模拟。

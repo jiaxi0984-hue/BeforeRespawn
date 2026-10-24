@@ -1,9 +1,9 @@
-# 源码目录与开发入口
+# BeforeRespawn · 源码目录与开发入口
 
 Python 源码集中在 `lol_words/` 包，按功能分组；项目说明集中在 `docs/`，根目录保留首页说明、许可证、启动脚本、配置示例和产品目录。
 
 ```text
-LOL-Words-zhandoushuang/
+BeforeRespawn/
 ├─ lol_words/
 │  ├─ __main__.py          模块启动入口
 │  ├─ application/         应用入口、服务、唯一监测编排
@@ -46,16 +46,17 @@ LOL-Words-zhandoushuang/
 python -m lol_words
 python -m lol_words --check
 python -B -m unittest discover -s tests -q
-python tools/package_app.py --output ..\outputs\LOL-Words-source.zip
-python tools/package_app.py --with-deps --output ..\outputs\LOL-Words-runtime.zip
-python tools/build_exe.py --output ..\outputs\LOL-Words-Windows-x64-portable.zip
-python tools/verify_exe.py ..\outputs\LOL-Words-Windows-x64-portable.zip --report ..\outputs\portable-verification.json
+python tools/package_app.py --output ..\outputs\BeforeRespawn-source.zip
+python tools/package_app.py --with-deps --output ..\outputs\BeforeRespawn-runtime.zip
+python tools/build_exe.py --output ..\outputs\BeforeRespawn-Windows-x64-portable.zip
+python tools/verify_exe.py ..\outputs\BeforeRespawn-Windows-x64-portable.zip --report ..\outputs\portable-verification.json
 ```
 
-源码 / Python 包用户双击 `start.cmd` 或 `start-admin.cmd`；免 Python 便携版完整解压后双击 `LOL-Words.exe`，不依赖源码启动器。便携构建需安装 `requirements-build.txt`，详见 [PACKAGING.md](PACKAGING.md)。原先根目录的 `app.pyw` 迁移为 `launchers/start.pyw`，需要使用双击入口时请更新旧快捷方式；`python app.py` 改为 `python -m lol_words`。
+源码 / Python 包用户双击 `start.cmd` 或 `start-admin.cmd`；免 Python 便携版完整解压后双击 `BeforeRespawn.exe`，不依赖源码启动器。便携构建需安装 `requirements-build.txt`，详见 [PACKAGING.md](PACKAGING.md)。原先根目录的 `app.pyw` 迁移为 `launchers/start.pyw`，需要使用双击入口时请更新旧快捷方式；`python app.py` 改为 `python -m lol_words`。
 
 ## 路径与升级兼容
 
+- 对外英文名称为 `BeforeRespawn`；内部 Python 包仍为 `lol_words`，模块命令与导入路径不变，历史发布保留原名称。
 - `system/paths.py` 根据安装位置确定项目根目录，不依赖当前工作目录；冻结后以 EXE 所在目录为准。
 - `config.json`、`runtime/`、`runtime.log`、`runtime-python.txt`、`_deps/` 保持原位置；不会随着模块移动重新创建一套配置。
 - 图标、内置目录和示例配置仍从根目录读取。游戏状态仅从本地对局接口读取，不包含组队客户端连接。

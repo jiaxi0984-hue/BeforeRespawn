@@ -34,13 +34,13 @@ def main():
         print('桌面依赖未能加载：'+str(exc) if args.check else '缺少桌面依赖，请先运行 install.cmd。')
         if sys.executable.lower().endswith('pythonw.exe'):
             import ctypes
-            ctypes.windll.user32.MessageBoxW(None, '缺少桌面依赖，请先运行 install.cmd，再打开本工具。', 'LOL Words · 缺少依赖', 0x10)
+            ctypes.windll.user32.MessageBoxW(None, '缺少桌面依赖，请先运行 install.cmd，再打开本工具。', 'BeforeRespawn · 缺少依赖', 0x10)
         return 1
     from lol_words.application.application_service import ApplicationService
     from lol_words.ui.desktop_ui import MainWindow
     app = QApplication(sys.argv[:1])
-    app.setApplicationName('LOL Words')
-    app.setOrganizationName('LOL-Words-zhandoushuang')
+    app.setApplicationName('BeforeRespawn')
+    app.setOrganizationName('BeforeRespawn')
     app.setFont(QFont('Microsoft YaHei UI', 10))
     service = ApplicationService(ROOT)
     window = MainWindow(service, autostart=not (args.check or args.paused))
@@ -51,7 +51,8 @@ def main():
         from lol_words.system.capture import SceneCapture
         app.processEvents()
         capture = SceneCapture()
-        result=dict(ok=False,frozen=bool(getattr(sys,'frozen',False)),executable=sys.executable,root=str(ROOT))
+        result=dict(ok=False,frozen=bool(getattr(sys,'frozen',False)),executable=sys.executable,root=str(ROOT),
+                    application_name=app.applicationName(),window_title=window.windowTitle())
         try:
             from lol_words.targets.catalog import LearningCatalog
             if not LearningCatalog().search('Anki') or not (ROOT/'assets/chevron-down.svg').is_file():

@@ -1,5 +1,6 @@
 """Portable startup gate and frozen external-process regression tests."""
 import ctypes
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -7,14 +8,115 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from unittest.mock import Mock, patch
 from lol_words.system.external_process import external_environment, popen_external, run_external
-from tools.verify_exe import check_inventory, clean_environment, verify_folder
+from tools.verify_exe import APP_NAME, check_inventory, clean_environment, verify_folder, verify_zip
 from tools.package_app import CODE
 
 from tools.build_exe import source_identity
 
 class ExePackagingTests(unittest.TestCase):
+    @staticmethod
+    def successful_startup(command, **kwargs):
+        app = Path(command[0]).parent
+        result = dict(ok=True, frozen=True, pages=5, resources_valid=True, bytes=12,
+                      backend='fixture', root=str(app), application_name=APP_NAME,
+                      window_title='泉水时间管理 · '+APP_NAME)
+        Path(command[-1]).write_text(json.dumps(result), encoding='utf-8')
+        return Mock(returncode=0, stderr=b'')
+
+    @staticmethod
+    def make_bundle(root, folder_name, executable):
+        raw = b'fixture-not-executable'
+        manifest = dict(files={executable:dict(bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())})
+        path = root/'fixture.zip'
+        with zipfile.ZipFile(path, 'w') as bundle:
+            bundle.writestr(folder_name+'/'+executable, raw)
+            bundle.writestr(folder_name+'/BUILD-MANIFEST.json', json.dumps(manifest))
+        return path
+
+    def test_spec_uses_current_brand(self):
+        spec = (Path(__file__).resolve().parents[1]/'build_config/windows.spec').read_text(encoding='utf-8')
+        self.assertEqual(spec.count("name='BeforeRespawn'"), 2)
+        self.assertNotIn("name='LOL-Words'", spec)
+
+    def test_inventory_supports_current_and_legacy_executables(self):
+        for name in (APP_NAME, 'LOL-Words'):
+            with self.subTest(name=name), tempfile.TemporaryDirectory(dir=os.environ.get('PI_SCRATCH_DIR')) as temporary:
+                root = Path(temporary)
+                (root/(name+'.exe')).write_bytes(b'fixture')
+                self.assertEqual(check_inventory(root), name+'.exe')
+
+    def test_inventory_rejects_two_brand_executables(self):
+        with tempfile.TemporaryDirectory(dir=os.environ.get('PI_SCRATCH_DIR')) as temporary:
+            root = Path(temporary)
+            for name in (APP_NAME, 'LOL-Words'):
+                (root/(name+'.exe')).write_bytes(b'fixture')
+            with self.assertRaisesRegex(ValueError, '只能包含一个'):
+                check_inventory(root)
+
+    def test_current_executable_requires_new_application_identity(self):
+        for field, value in (('application_name', None), ('window_title', None),
+                             ('application_name', 'LOL-Words'), ('window_title', '泉水时间管理 · LOL-Words')):
+            with self.subTest(field=field, value=value), tempfile.TemporaryDirectory(dir=os.environ.get('PI_SCRATCH_DIR')) as temporary:
+                root = Path(temporary)
+                (root/(APP_NAME+'.exe')).write_bytes(b'fixture')
+                def launch(command, **kwargs):
+                    self.successful_startup(command, **kwargs)
+                    report = Path(command[-1])
+                    result = json.loads(report.read_text(encoding='utf-8'))
+                    if value is None:
+                        result.pop(field)
+                    else:
+                        result[field] = value
+                    report.write_text(json.dumps(result), encoding='utf-8')
+                    return Mock(returncode=0, stderr=b'')
+                with patch('tools.verify_exe.subprocess.run', side_effect=launch):
+                    with self.assertRaisesRegex(RuntimeError, '隔离启动失败'):
+                        verify_folder(root)
+
+    def test_legacy_startup_without_brand_fields_remains_supported(self):
+        def launch(command, **kwargs):
+            self.successful_startup(command, **kwargs)
+            report = Path(command[-1])
+            result = json.loads(report.read_text(encoding='utf-8'))
+            result.pop('application_name'); result.pop('window_title')
+            report.write_text(json.dumps(result), encoding='utf-8')
+            return Mock(returncode=0, stderr=b'')
+        with tempfile.TemporaryDirectory(dir=os.environ.get('PI_SCRATCH_DIR')) as temporary:
+            root = Path(temporary)
+            (root/'LOL-Words.exe').write_bytes(b'fixture')
+            with patch('tools.verify_exe.subprocess.run', side_effect=launch):
+                self.assertEqual(verify_folder(root)['executable'], 'LOL-Words.exe')
+
+    def test_zip_accepts_current_and_legacy_names(self):
+        for name in (APP_NAME, 'LOL-Words'):
+            with self.subTest(name=name), tempfile.TemporaryDirectory(dir=os.environ.get('PI_SCRATCH_DIR')) as temporary:
+                path = self.make_bundle(Path(temporary), name, name+'.exe')
+                with patch('tools.verify_exe.subprocess.run', side_effect=self.successful_startup):
+                    result = verify_zip(path)
+                self.assertTrue(result['manifest_verified'])
+                self.assertEqual(result['executable'], name+'.exe')
+
+    def test_zip_rejects_mismatched_directory_and_executable(self):
+        for folder, executable in ((APP_NAME, 'LOL-Words.exe'), ('LOL-Words', APP_NAME+'.exe')):
+            with self.subTest(folder=folder), tempfile.TemporaryDirectory(dir=os.environ.get('PI_SCRATCH_DIR')) as temporary:
+                path = self.make_bundle(Path(temporary), folder, executable)
+                with patch('tools.verify_exe.verify_folder') as launch:
+                    with self.assertRaisesRegex(ValueError, '目录与程序名称不一致'):
+                        verify_zip(path)
+                    launch.assert_not_called()
+
+    def test_zip_rejects_mixed_brand_roots(self):
+        with tempfile.TemporaryDirectory(dir=os.environ.get('PI_SCRATCH_DIR')) as temporary:
+            path = Path(temporary)/'fixture.zip'
+            with zipfile.ZipFile(path, 'w') as bundle:
+                for name in (APP_NAME, 'LOL-Words'):
+                    bundle.writestr(name+'/'+name+'.exe', b'fixture')
+            with self.assertRaisesRegex(ValueError, '唯一'):
+                verify_zip(path)
+
     def test_source_package_contains_rebuild_inputs(self):
         self.assertIn('requirements-build.txt', CODE)
         self.assertIn('build_config/windows.spec', CODE)
@@ -26,7 +128,7 @@ class ExePackagingTests(unittest.TestCase):
     def test_private_runtime_rejected_without_modification(self):
         with tempfile.TemporaryDirectory(dir=os.environ.get('PI_SCRATCH_DIR')) as temporary:
             root = Path(temporary)
-            (root/'LOL-Words.exe').write_bytes(b'fixture')
+            (root/'BeforeRespawn.exe').write_bytes(b'fixture')
             private = root/'config.json'
             private.write_text('private', encoding='utf-8')
             with self.assertRaisesRegex(ValueError, '混入'):
@@ -37,7 +139,7 @@ class ExePackagingTests(unittest.TestCase):
         for relative in ('Config.JSON', 'Runtime/browsers/owner.json', 'Runtime-Python.TXT'):
             with self.subTest(path=relative), tempfile.TemporaryDirectory(dir=os.environ.get('PI_SCRATCH_DIR')) as temporary:
                 root = Path(temporary)
-                (root/'LOL-Words.exe').write_bytes(b'fixture')
+                (root/'BeforeRespawn.exe').write_bytes(b'fixture')
                 private = root/relative
                 private.parent.mkdir(parents=True, exist_ok=True)
                 private.write_text('private', encoding='utf-8')
@@ -57,23 +159,24 @@ class ExePackagingTests(unittest.TestCase):
     def test_failed_startup_is_not_accepted(self):
         with tempfile.TemporaryDirectory(dir=os.environ.get('PI_SCRATCH_DIR')) as temporary:
             root = Path(temporary)
-            (root/'LOL-Words.exe').write_bytes(b'fixture')
+            (root/'BeforeRespawn.exe').write_bytes(b'fixture')
             with patch('tools.verify_exe.subprocess.run', return_value=Mock(returncode=1, stderr=b'bad DLL')):
                 with self.assertRaisesRegex(RuntimeError, '隔离启动失败'):
                     verify_folder(root)
-            self.assertEqual(list(root.iterdir()), [root/'LOL-Words.exe'])
+            self.assertEqual(list(root.iterdir()), [root/'BeforeRespawn.exe'])
 
     def test_success_requires_frozen_pages_resources_and_correct_root(self):
         def launch(command, **kwargs):
             app = Path(command[0]).parent
             result = dict(ok=True, frozen=True, pages=5, resources_valid=True, bytes=12,
-                          backend='fixture', root=str(app))
+                          backend='fixture', root=str(app), application_name=APP_NAME,
+                          window_title='泉水时间管理 · '+APP_NAME)
             Path(command[-1]).write_text(json.dumps(result), encoding='utf-8')
             self.assertNotEqual(Path(kwargs['cwd']), app)
             return Mock(returncode=0, stderr=b'')
         with tempfile.TemporaryDirectory(dir=os.environ.get('PI_SCRATCH_DIR')) as temporary:
             root = Path(temporary)
-            (root/'LOL-Words.exe').write_bytes(b'fixture')
+            (root/'BeforeRespawn.exe').write_bytes(b'fixture')
             with patch('tools.verify_exe.subprocess.run', side_effect=launch):
                 self.assertTrue(verify_folder(root)['ok'])
 

@@ -13,7 +13,7 @@ import zipfile
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from tools.verify_exe import verify_folder, check_inventory
+from tools.verify_exe import APP_NAME, verify_folder, check_inventory
 
 
 def source_identity(root):
@@ -31,7 +31,7 @@ def source_identity(root):
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--output',type=Path,required=True)
-    parser.add_argument('--existing-dist',type=Path,help='收集本工具已生成的 LOL-Words 程序目录')
+    parser.add_argument('--existing-dist',type=Path,help='收集本工具已生成的 BeforeRespawn 程序目录')
     args=parser.parse_args()
     output=args.output.resolve()
     if output.suffix.lower()!='.zip':raise ValueError('输出文件需要 .zip 后缀')
@@ -45,12 +45,12 @@ def main():
         env=dict(os.environ);env.pop('LOL_WORDS_BUILD_CONSOLE',None)
         subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--clean','--distpath',str(work/'dist'),
             '--workpath',str(work/'work'),str(ROOT/'build_config/windows.spec')],cwd=ROOT,env=env,check=True)
-        dist=work/'dist/LOL-Words'
+        dist=work/'dist'/APP_NAME
     runtime_name=f'python{sys.version_info.major}{sys.version_info.minor}.dll'
-    if not (dist/'LOL-Words.exe').is_file() or not (dist/'_internal'/runtime_name).is_file():
+    if not (dist/(APP_NAME+'.exe')).is_file() or not (dist/'_internal'/runtime_name).is_file():
         raise ValueError('缺少程序或内置 Python 运行库，构建未完成')
     check_inventory(dist)
-    folder=output.parent/(output.stem+'-files')/'LOL-Words'
+    folder=output.parent/(output.stem+'-files')/APP_NAME
     if folder.exists():raise ValueError('目标目录已存在，为保留配置已停止覆盖：'+str(folder))
     shutil.copytree(dist,folder)
     for name in ['config.example.json','learning_catalog.json','LICENSE']:shutil.copy2(ROOT/name,folder/name)
@@ -65,9 +65,9 @@ def main():
         if '.dist-info/licenses/' in item.as_posix():
             target=folder/'licenses/PyInstaller'/item.as_posix().split('.dist-info/licenses/',1)[1]
             target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(distribution.locate_file(item),target)
-    (folder/'使用说明.txt').write_text('''泉水时间管理 · Windows 便携版
+    (folder/'使用说明.txt').write_text(f'''BeforeRespawn · 泉水时间管理 · Windows 便携版
 
-1. 完整解压本压缩包，双击 LOL-Words.exe。无需安装 Python。
+1. 完整解压本压缩包，双击 {APP_NAME}.exe。无需安装 Python。
 2. 保留整个程序目录，运行库、assets 和产品目录文件都随程序使用。
 3. 首次默认学习模式、Anki、死亡后延迟 3 秒、复活前提前返回 1 秒。
 4. 学习软件和 Edge / Chrome 由用户自行安装，可在界面中检测、添加或选择官网。
@@ -89,14 +89,14 @@ def main():
     (folder/'BUILD-MANIFEST.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
     temporary=output.with_suffix('.zip.tmp')
     with zipfile.ZipFile(temporary,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as bundle:
-        for path in sorted(p for p in folder.rglob('*') if p.is_file()):bundle.write(path,'LOL-Words/'+path.relative_to(folder).as_posix())
+        for path in sorted(p for p in folder.rglob('*') if p.is_file()):bundle.write(path,APP_NAME+'/'+path.relative_to(folder).as_posix())
     with zipfile.ZipFile(temporary) as bundle:
         assert bundle.testzip() is None
-        for name,item in manifest['files'].items():assert hashlib.sha256(bundle.read('LOL-Words/'+name)).hexdigest()==item['sha256'],name
+        for name,item in manifest['files'].items():assert hashlib.sha256(bundle.read(APP_NAME+'/'+name)).hexdigest()==item['sha256'],name
     temporary.replace(output)
     digest=hashlib.sha256(output.read_bytes()).hexdigest()
     output.with_suffix('.zip.sha256').write_text(digest+'  '+output.name+'\n',encoding='utf-8')
-    print(json.dumps(dict(zip=str(output),folder=str(folder),exe=str(folder/'LOL-Words.exe'),bytes=output.stat().st_size,sha256=digest),ensure_ascii=False))
+    print(json.dumps(dict(zip=str(output),folder=str(folder),exe=str(folder/(APP_NAME+'.exe')),bytes=output.stat().st_size,sha256=digest),ensure_ascii=False))
 
 
 if __name__=='__main__':main()
