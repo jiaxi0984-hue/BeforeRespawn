@@ -25,14 +25,18 @@
 
 ## 安装与启动
 
-环境：Windows 10/11 64 位，**Python 3.14（64 位）**。界面使用 PySide6-Essentials 6.12.0；旧界面回归测试另需 Python 附带的 Tk。网页目标另需已安装 Edge 或 Chrome。Anki 或其他桌面学习软件由用户自行安装。
+支持 Windows 10/11 64 位。**Windows 便携 EXE 包无需安装 Python**；源码包和含 `_deps` 的 Python 运行包仍需 Python 3.14（64 位）。网页目标另需已安装 Edge 或 Chrome，Anki 或其他桌面学习软件由用户自行安装。
 
 ```powershell
 git clone https://github.com/jiaxi0984-hue/LOL-Words-zhandoushuang.git
 cd LOL-Words-zhandoushuang
 ```
 
-源码安装：双击 `install.cmd`，将锁定依赖安装到项目 `_deps`；再双击 `start.cmd`。交付的运行压缩包已经包含 `_deps`，可跳过依赖安装，但仍需本机 Python 3.14。
+- **便携 EXE 包**：完整解压 `LOL-Words-Windows-x64-*-portable.zip` 到可写目录，双击 `LOL-Words.exe`。必须保留 `_internal`、`assets` 等整个目录；不要只复制 EXE。遇到权限不足时可退出后右键 EXE 选择“以管理员身份运行”，不强制常驻管理员。
+- **源码包**：双击 `install.cmd` 将锁定依赖安装到 `_deps`，再双击 `start.cmd`。Qt 使用 PySide6-Essentials 6.12.0；旧界面回归测试另需 Python 附带的 Tk。
+- **含依赖 Python 运行包**：已有 `_deps`，可跳过依赖安装，但仍需本机 Python 3.14。不要将它与免 Python 的便携 EXE 包混淆。
+
+构建、校验命令及当前验收边界见 [Windows 便携打包说明](docs/PACKAGING.md)。配置、专用浏览器资料和日志保存在程序旁，升级前先退出旧工具并备份自己的 `config.json` 和 `runtime/`；不在个人资料目录上覆盖解压。
 
 先退出旧工具，解压到独立目录，避免两个版本同时监测。首次进入工具默认学习模式、Anki、死亡后延迟 3 秒、复活前提前返回 1 秒、无边框、维持置顶开启。
 
@@ -96,7 +100,7 @@ Python 文件已按功能归入 `lol_words/`，完整目录与开发入口见 [S
 
 ## 验证与限制
 
-当前 **281 项自动化测试通过**，包含状态隔离、跨局清理、名称解析、官网候选过滤、软件库检测、配置迁移、窗口管理、权限差异与管理员重启门控、模拟下载及目录迁移后的入口 / 资源验证。没有在测试中下载实际安装包。
+当前 **297 项自动化测试通过**，包含状态隔离、跨局清理、名称解析、官网候选过滤、软件库检测、配置迁移、窗口管理、管理员重启、剪贴板占用重试、冻结路径、外部进程 DLL 恢复及便携验包保护。下载测试只用模拟入口，没有下载实际安装包。正常窗口版 EXE 已通过中文 / 空格路径、清理外部 Python 路径后的隔离启动与实际暂停 / 继续 / 退出检查；详细边界见 [PACKAGING.md](docs/PACKAGING.md)。
 
 ```powershell
 python -B -m unittest discover -s tests -v

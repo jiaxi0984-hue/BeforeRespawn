@@ -31,5 +31,8 @@ class PackageEntryTests(unittest.TestCase):
 
     def test_double_click_launcher_works_from_an_unrelated_working_directory(self):
         with tempfile.TemporaryDirectory(dir=ROOT/'tests',prefix='启动 空格') as folder:
-            output=self.run_python(str(ROOT/'launchers/start.pyw'),'--check',cwd=folder)
+            report=Path(folder)/'check.json'
+            output=self.run_python(str(ROOT/'launchers/start.pyw'),'--check','--check-report',str(report),cwd=folder)
+            result=json.loads(report.read_text(encoding='utf-8'))
+            self.assertTrue(result['ok']);self.assertFalse(result['frozen']);self.assertEqual(result['pages'],5)
         self.assertIn('未启动监测、目标或下载',output)

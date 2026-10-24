@@ -512,6 +512,8 @@ class MainWindow(QMainWindow):
         self.log_table.setColumnWidth(0, 84); self.log_table.setColumnWidth(1, 64); layout.addWidget(self.log_table, 1)
         self.log_categories.currentTextChanged.connect(self.filter_logs); self.log_search.textChanged.connect(self.filter_logs)
         self.log_status = label('可按 Ctrl + C 复制所选行。最多保留最近 1,000 条界面日志。', 'muted'); layout.addWidget(self.log_status)
+        self.log_copy_timer = QTimer(self); self.log_copy_timer.setSingleShot(True); self.log_copy_timer.setInterval(100)
+        self.log_copy_timer.timeout.connect(self._copy_log_attempt)
 
     @staticmethod
     def setup_table(table):
@@ -723,10 +725,30 @@ class MainWindow(QMainWindow):
         except OSError: pass
 
     def copy_log(self):
+        self.log_copy_timer.stop()
         rows = sorted({index.row() for index in self.log_table.selectionModel().selectedRows()})
         if not rows: self.log_status.setText('请先选择需要复制的日志行。'); return
         text = '\n'.join('\t'.join(str(self.log_proxy.index(row, col).data() or '') for col in range(3)) for row in rows)
-        QApplication.clipboard().setText(text); self.log_status.setText(f'已复制 {len(rows)} 条日志。')
+        # 固定本次选择的内容；等待剪贴板期间筛选、日志追加不应改变复制结果。
+        self._log_copy_pending = text, len(rows)
+        self._log_copy_attempts_left = 5
+        self._copy_log_attempt()
+
+    def _copy_log_attempt(self):
+        if self.closing: return
+        text, count = self._log_copy_pending
+        self._log_copy_attempts_left -= 1
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text)
+        # Windows 的 OleSetClipboard 失败不会抛异常，setText 返回也不代表已写入。
+        owned = QApplication.platformName() != 'windows' or clipboard.ownsClipboard()
+        if owned and clipboard.text() == text:
+            self.log_status.setText(f'已复制 {count} 条日志。')
+        elif self._log_copy_attempts_left:
+            self.log_status.setText('剪贴板暂不可用，正在重试…')
+            self.log_copy_timer.start()
+        else:
+            self.log_status.setText('复制失败：剪贴板暂不可用，请稍后重试。')
 
     def handle_job(self, key, status, result):
         busy, error = status == 'busy', status == 'error'

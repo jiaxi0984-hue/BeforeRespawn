@@ -15,13 +15,13 @@
 
 ## 窗口权限
 
-当游戏与工具权限不同导致窗口无法切换时，可先退出旧工具，再使用 `start-admin.cmd`。Windows 标准授权后新窗口保持暂停，点击“继续监测”才开始工作。此入口仅处理本工具的运行权限，不连接客户端大厅或操作组队。
+当游戏与工具权限不同导致窗口无法切换时，可先退出旧工具，再使用 `start-admin.cmd`（源码 / Python 包）或运行 `LOL-Words.exe --admin`（便携版）；Windows 标准授权后新窗口保持暂停，点击“继续监测”才开始工作。便携版也可右键 EXE 选择“以管理员身份运行”，但直接右键启动沿用默认自动监测；需要暂停启动时用 `--paused`。这些入口仅处理本工具权限，不连接客户端大厅或操作组队。
 
 ## 使用方式
 
-1. 安装 Windows 10/11 64 位上的 **Python 3.14 64 位**。运行包附带项目依赖，但不附带 Python 解释器。
-2. 解压到独立目录，退出旧版本工具，双击 `start.cmd`。源码包首次使用先运行 `install.cmd`。
-3. 可双击 `launchers/start.pyw` 使用无控制台入口，前提是系统已将 `.pyw` 关联到 Python。启动错误会显示 Windows 提示并写入本机 `startup-error.log`。
+1. **便携 EXE 包**不需要安装 Python：完整解压到可写独立目录，双击 `LOL-Words.exe`，保留整个 `_internal` 和资源目录。
+2. **源码 / 含依赖 Python 包**需要 Windows 10/11 64 位上的 **Python 3.14 64 位**，双击 `start.cmd`；源码包首次使用先运行 `install.cmd`。含 `_deps` 的包可以跳过依赖安装，但并非免 Python 便携版。
+3. Python 包可双击 `launchers/start.pyw` 使用无控制台入口，前提是系统已将 `.pyw` 关联到 Python。启动错误写入本机 `startup-error.log`。升级前退出旧工具并备份个人配置与 `runtime/`，不要在个人资料目录上覆盖解压。
 4. 默认自动监测，学习目标为 Anki。目标首次满足安全切出条件时才自动启动；“打开 / 重新打开目标”为用户主动打开入口。
 5. 暂停快捷键仍为 **Ctrl + Alt + F8**。导航可使用 **Alt + 1–5**；各控件支持 Tab 切换，日志页支持 Ctrl + C 复制所选行。
 
@@ -45,7 +45,7 @@
 | 自定义软件 | `TargetEditor`、`validate_target`、`DesktopAdapter` | 文件选择器、完整进程路径、标题 / 类条件；参数数组启动，不使用命令行外壳 |
 | 娱乐网站 | `ModeRuntime`、`BrowserAdapter` | 只控制本工具创建的专用浏览器窗口 / 页面；复用，不覆盖日常标签页，结束对局保留 |
 | 通用设置 | `ApplicationService.update_config`、`migrate_config` | 校验后原子保存，再发布配置；只改用户编辑的字段，保留旧值的额外小数精度 |
-| 运行日志 | 服务事件队列 → Qt 日志模型 | 时间、类别、说明；筛选与复制，重复连续事件去重，界面最多 1,000 条 |
+| 运行日志 | 服务事件队列 → Qt 日志模型 | 时间、类别、说明；筛选与复制，剪贴板占用时有界异步重试，确认写入后才报告成功；重复连续事件去重，最多 1,000 条 |
 
 软件库中“已收录”和本机“已检测到”严格区分。官网条目的说明保留产品介绍页、网页工具与完整网页应用之间的差别；没有核实到电脑客户端的产品不会虚构路径。
 
@@ -111,5 +111,7 @@ python tools/package_app.py --with-deps --output ..\outputs\LOL-Words-desktop-ru
 `--check` 只检查界面与画面采样，不监测游戏、启动目标或下载。窗口测试使用新建的临时进程，并在检测到真实游戏进程时跳过。截图检查只在没有游戏进程时启动真实等待监测，其他状态明确标为模拟。
 
 运行包保留完整源码、测试、文档、许可与依赖。源码包保留相同项目文件，需安装依赖。包内 `BUILD-MANIFEST.json` 提供每个文件的摘要，旁附 `.sha256`；打包脚本校验 ZIP 完整性与全部文件摘要，不包含个人配置、运行日志、头像定位及浏览器资料。
+
+免 Python 便携版改用 `tools/build_exe.py`；脚本强制隔离启动验收后才生成 ZIP。可用 `tools/verify_exe.py` 对 ZIP 重新解压并验收。源码 / Python 包现已包含构建配置和构建依赖锁定文件，命令与实测状态见 [PACKAGING.md](PACKAGING.md)。
 
 自动化测试与界面检查不能替代真实游戏验证；真实全屏 / 无边框、特定英雄及第三方学习软件组合仍待对应场景实测。Qt 环境依据：[官方入门](https://doc.qt.io/qtforpython-6/gettingstarted.html)、[Essentials 包](https://pypi.org/project/PySide6-Essentials/6.12.0/)。

@@ -16,6 +16,8 @@ LOL-Words-zhandoushuang/
 ├─ tests/                 回归与入口集成测试
 ├─ tools/                 只读检查、替身窗口检查、截图和打包脚本
 ├─ assets/                界面图标
+├─ build_config/windows.spec  Windows 便携程序构建配置
+├─ requirements-build.txt    PyInstaller 构建依赖锁定
 ├─ archive/               已退役功能与历史资料，仅在仓库保存
 ├─ docs/                  配置、界面、目录、源码结构及许可说明
 │  └─ screenshots/        当前界面截图
@@ -46,14 +48,18 @@ python -m lol_words --check
 python -B -m unittest discover -s tests -q
 python tools/package_app.py --output ..\outputs\LOL-Words-source.zip
 python tools/package_app.py --with-deps --output ..\outputs\LOL-Words-runtime.zip
+python tools/build_exe.py --output ..\outputs\LOL-Words-Windows-x64-portable.zip
+python tools/verify_exe.py ..\outputs\LOL-Words-Windows-x64-portable.zip --report ..\outputs\portable-verification.json
 ```
 
-Windows 用户继续双击 `start.cmd` 或 `start-admin.cmd`。原先根目录的 `app.pyw` 迁移为 `launchers/start.pyw`，需要使用双击入口时请更新旧快捷方式；`python app.py` 改为 `python -m lol_words`。
+源码 / Python 包用户双击 `start.cmd` 或 `start-admin.cmd`；免 Python 便携版完整解压后双击 `LOL-Words.exe`，不依赖源码启动器。便携构建需安装 `requirements-build.txt`，详见 [PACKAGING.md](PACKAGING.md)。原先根目录的 `app.pyw` 迁移为 `launchers/start.pyw`，需要使用双击入口时请更新旧快捷方式；`python app.py` 改为 `python -m lol_words`。
 
 ## 路径与升级兼容
 
-- `system/paths.py` 根据安装位置确定项目根目录，不依赖当前工作目录。
+- `system/paths.py` 根据安装位置确定项目根目录，不依赖当前工作目录；冻结后以 EXE 所在目录为准。
 - `config.json`、`runtime/`、`runtime.log`、`runtime-python.txt`、`_deps/` 保持原位置；不会随着模块移动重新创建一套配置。
 - 图标、内置目录和示例配置仍从根目录读取。游戏状态仅从本地对局接口读取，不包含组队客户端连接。
 - 跨目录导入使用 `lol_words.<功能>.<模块>`，无需把各功能目录加入搜索路径，也不维护两套同名旧源码。
 - 运行包包含完整包目录、启动器和辅助脚本；个人配置、浏览器资料、日志、头像定位和动作记录继续排除。
+- `tools/build_exe.py` 收集完整便携目录及许可，强制运行隔离自检；`tools/verify_exe.py` 重新解压 ZIP、校验清单和摘要并启动检查，拒绝个人资料与已有报告覆盖。
+- `system/external_process.py` 在冻结程序创建外部子进程的短暂阶段清理 DLL 搜索目录并立即恢复；等待子进程不持锁，不改写全局 PATH。

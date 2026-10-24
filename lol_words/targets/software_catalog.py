@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+from lol_words.system.external_process import run_external
 
 
 def split_arguments(arguments):
@@ -51,7 +52,7 @@ foreach($app in (Get-ItemProperty $appPaths -ErrorAction SilentlyContinue)) {
 ConvertTo-Json -InputObject @($items) -Compress
 '''
     powershell = Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
-    result = subprocess.run([str(powershell), '-NoProfile', '-NonInteractive', '-Command', script],
+    result = run_external([str(powershell), '-NoProfile', '-NonInteractive', '-Command', script],
         capture_output=True, timeout=15, creationflags=subprocess.CREATE_NO_WINDOW)
     if result.returncode:
         raise OSError('安装登记采集未完成')

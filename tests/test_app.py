@@ -371,7 +371,7 @@ class DiscoveryTests(unittest.TestCase):
         import json
         from lol_words.targets.discovery import shortcut_candidates
         result = Mock(stdout=json.dumps(['E:/学习/Anki.exe'], ensure_ascii=False).encode('utf-8'))
-        with patch('lol_words.targets.discovery.subprocess.run', return_value=result):
+        with patch('lol_words.targets.discovery.run_external', return_value=result):
             self.assertEqual(shortcut_candidates(), ['E:/学习/Anki.exe'])
 
 

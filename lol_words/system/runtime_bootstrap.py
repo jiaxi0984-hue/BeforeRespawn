@@ -2,5 +2,5 @@
 import sys
 from .paths import ROOT
 
-if (ROOT / '_deps').is_dir():
+if not getattr(sys,'frozen',False) and (ROOT / '_deps').is_dir():
     sys.path.insert(0, str(ROOT / '_deps'))

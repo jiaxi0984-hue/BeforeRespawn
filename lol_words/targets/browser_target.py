@@ -8,6 +8,7 @@ import urllib.request
 from urllib.parse import urlsplit
 from lol_words.targets.adapters import DesktopAdapter, normalized
 from lol_words.system.state_store import JsonStore
+from lol_words.system.external_process import popen_external
 
 
 def find_browser():
@@ -64,7 +65,7 @@ class BrowserAdapter(DesktopAdapter):
         command = [browser, '--user-data-dir=' + str(self.profile.resolve()), '--app=' + self.spec['url'],
                    '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0',
                    '--remote-debugging-address=127.0.0.1']
-        self.process = subprocess.Popen(command, shell=False)
+        self.process = popen_external(command, shell=False)
         identity = self.windows.process_identity(self.process.pid)
         if not identity:
             raise OSError('无法确认专用浏览器进程身份，不按浏览器名称操作其他窗口')
@@ -105,7 +106,7 @@ class BrowserAdapter(DesktopAdapter):
         # 依赖加载范围仅限项目 _deps，不加载任何浏览器凭据或已有用户配置目录。
         import sys
         deps = str(self.root / '_deps')
-        if deps not in sys.path:
+        if not getattr(sys,'frozen',False) and Path(deps).is_dir() and deps not in sys.path:
             sys.path.insert(0, deps)
         import websocket
         page = self.page()

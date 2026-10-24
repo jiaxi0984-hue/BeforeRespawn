@@ -6,6 +6,7 @@ import threading
 import time
 from typing import Protocol
 from lol_words.targets.discovery import locate_anki
+from lol_words.system.external_process import popen_external
 
 
 def normalized(path):
@@ -80,7 +81,7 @@ class DesktopAdapter:
         info = subprocess.STARTUPINFO()
         info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         info.wShowWindow = 7  # 启动初始化期间不主动激活，真正显示交给统一窗口管理。
-        return subprocess.Popen(command, cwd=str(Path(command[0]).parent), shell=False, startupinfo=info)
+        return popen_external(command, cwd=str(Path(command[0]).parent), shell=False, startupinfo=info)
 
 
 class AnkiAdapter(DesktopAdapter):

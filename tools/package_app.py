@@ -9,7 +9,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 CODE = ['launchers/start.pyw', 'start-admin.cmd',
-        'requirements.txt', 'requirements-capture.txt', 'start.cmd', 'install.cmd', 'config.example.json', 'learning_catalog.json',
+        'requirements.txt', 'requirements-build.txt', 'build_config/windows.spec', 'requirements-capture.txt', 'start.cmd', 'install.cmd', 'config.example.json', 'learning_catalog.json',
         'README.md', 'LICENSE', '.gitignore', '.gitattributes']
 
 

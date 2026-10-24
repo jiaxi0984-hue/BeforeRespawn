@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import subprocess
+from lol_words.system.external_process import run_external
 
 
 EXECUTABLES = ("Anki.exe", "anki.exe", "anki-launcher.exe", "ankiw.exe")
@@ -81,7 +82,7 @@ ConvertTo-Json -InputObject $targets -Compress
 """
     try:
         powershell = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32/WindowsPowerShell/v1.0/powershell.exe"
-        result = subprocess.run([str(powershell), "-NoProfile", "-NonInteractive", "-Command", script],
+        result = run_external([str(powershell), "-NoProfile", "-NonInteractive", "-Command", script],
                                 capture_output=True, timeout=8,
                                 creationflags=subprocess.CREATE_NO_WINDOW)
         # 明确要求子进程按 UTF-8 输出，避免非英文安装路径被系统代码页破坏。

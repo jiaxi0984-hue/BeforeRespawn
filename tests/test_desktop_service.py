@@ -296,11 +296,68 @@ class QtCase(unittest.TestCase):
         prompt=DownloadPrompt(self.window,self.service,(reply,answer,cancelled));prompt.approve_button.click()
         self.assertTrue(reply.is_set());self.assertTrue(answer['approved'])
 
+    def wait_for_log_copy(self):
+        deadline = time.monotonic() + 5
+        while self.window.log_copy_timer.isActive() and time.monotonic() < deadline:
+            QTest.qWait(20)
+        self.assertFalse(self.window.log_copy_timer.isActive(), self.window.log_status.text())
+
     def test_logs_filter_and_copy_selected_rows(self):
-        self.window.append_log('本人死亡已确认：替身')
+        self.window.append_log('本人死亡已确认：其他', persist=False, timestamp='12:00:00')
+        self.window.append_log('目标复用：替身', persist=False, timestamp='12:00:01')
+        self.window.append_log('本人死亡已确认：替身', persist=False, timestamp='12:00:02')
         self.window.log_categories.setCurrentText('死亡');self.window.log_search.setText('替身')
         self.assertEqual(self.window.log_proxy.rowCount(),1)
-        self.window.log_table.selectRow(0);self.window.copy_log();self.assertIn('本人死亡已确认',QT.clipboard().text())
+        self.window.log_table.selectRow(0)
+        self.assertEqual([index.row() for index in self.window.log_table.selectionModel().selectedRows()], [0])
+        self.window.copy_log()
+        self.wait_for_log_copy()
+        self.assertEqual(self.window.log_status.text(), '已复制 1 条日志。')
+        self.assertEqual(QT.clipboard().text(), '12:00:02\t死亡\t本人死亡已确认：替身')
+
+    def test_log_copy_retries_busy_clipboard_with_selection_snapshot(self):
+        self.window.append_log('本人死亡已确认：复制测试甲', persist=False, timestamp='12:00:00')
+        self.window.append_log('目标复用：复制测试', persist=False, timestamp='12:00:01')
+        self.window.append_log('本人死亡已确认：复制测试乙', persist=False, timestamp='12:00:02')
+        self.window.log_categories.setCurrentText('死亡');self.window.log_search.setText('复制测试')
+        self.window.log_table.selectAll()
+        self.assertEqual([index.row() for index in self.window.log_table.selectionModel().selectedRows()], [0, 1])
+        expected = '12:00:00\t死亡\t本人死亡已确认：复制测试甲\n12:00:02\t死亡\t本人死亡已确认：复制测试乙'
+        clipboard = Mock()
+        clipboard.ownsClipboard.side_effect = [False, False, True]
+        clipboard.text.return_value = expected
+        with patch.object(QApplication, 'clipboard', return_value=clipboard), patch.object(QApplication, 'platformName', return_value='windows'):
+            self.window.copy_log()
+            self.assertEqual(self.window.log_status.text(), '剪贴板暂不可用，正在重试…')
+            self.window.log_search.setText('没有匹配行')
+            self.wait_for_log_copy()
+        self.assertEqual(clipboard.setText.call_count, 3)
+        self.assertTrue(all(call.args == (expected,) for call in clipboard.setText.call_args_list))
+        self.assertEqual(self.window.log_status.text(), '已复制 2 条日志。')
+
+    def test_log_copy_reports_persistent_clipboard_failure_and_allows_retry(self):
+        self.window.log_table.selectRow(0)
+        expected = '\t'.join(self.window.log_proxy.index(0, col).data() for col in range(3))
+        clipboard = Mock()
+        clipboard.ownsClipboard.return_value = False
+        clipboard.text.return_value = ''
+        with patch.object(QApplication, 'clipboard', return_value=clipboard), patch.object(QApplication, 'platformName', return_value='windows'):
+            self.window.copy_log()
+            self.wait_for_log_copy()
+            self.assertEqual(clipboard.setText.call_count, 5)
+            self.assertEqual(self.window.log_status.text(), '复制失败：剪贴板暂不可用，请稍后重试。')
+            clipboard.ownsClipboard.return_value = True
+            clipboard.text.return_value = expected
+            self.window.copy_log()
+        self.assertEqual(clipboard.setText.call_count, 6)
+        self.assertEqual(self.window.log_status.text(), '已复制 1 条日志。')
+
+    def test_log_copy_without_selection_does_not_touch_clipboard(self):
+        with patch.object(QApplication, 'clipboard') as clipboard:
+            self.window.copy_log()
+        clipboard.assert_not_called()
+        self.assertFalse(self.window.log_copy_timer.isActive())
+        self.assertEqual(self.window.log_status.text(), '请先选择需要复制的日志行。')
 
     def test_log_dedup_and_no_internal_controls(self):
         before=self.window.log_model.rowCount();self.window.append_log('目标复用');self.window.append_log('目标复用')

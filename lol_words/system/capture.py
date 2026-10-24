@@ -113,7 +113,7 @@ class SceneCapture:
             return
         self.import_attempted = True
         vendor = ROOT / "_deps"
-        if vendor.is_dir() and str(vendor) not in sys.path:
+        if not getattr(sys,'frozen',False) and vendor.is_dir() and str(vendor) not in sys.path:
             sys.path.insert(0, str(vendor))
         try:
             import dxcam
